@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Nazwa projektu
-project(cpp_chess)
+project(cpp_chess VERSION 1.0 LANGUAGES CXX)
 
 # Ustaw standard C++
 set(CMAKE_CXX_STANDARD 20)
@@ -14,7 +14,8 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Pliki źródłowe
-file( GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES "src/*.cpp")
+
 # Tworzenie pliku wykonywalnego
 add_executable(cpp_chess ${SOURCES})
 
