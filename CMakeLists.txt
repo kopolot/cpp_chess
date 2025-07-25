@@ -15,20 +15,22 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Domyślny typ budowania" FORCE)
 endif()
 
-# Pliki źródłowe
-file(GLOB SOURCES "src/*.cpp")
-
-# Tworzenie pliku wykonywalnego
-add_executable(cpp_chess ${SOURCES})
-
-# Dodaj katalog z plikami nagłówkowymi
-target_include_directories(cpp_chess PRIVATE include)
 
 # Ustawienia kompilatora dla różnych konfiguracji
-target_compile_options(cpp_chess PRIVATE
-    $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>:-O3>
-)
+function(set_my_compile_options target)
+    target_compile_options(${target} PRIVATE
+        $<$<CONFIG:Debug>:-g -O0>
+        $<$<CONFIG:Release>:-O3>
+    )
+endfunction()
+
+# Build cli
+file(GLOB CLI_SOURCES "cli/*.cpp")
+add_executable(cpp_chess_cli ${CLI_SOURCES})
+set_my_compile_options(cpp_chess_cli)
+target_include_directories(cpp_chess_cli PRIVATE include)
+find_package(fmt REQUIRED)
+target_link_libraries(cpp_chess_cli PRIVATE fmt::fmt)
 
 # Testy
 option(BUILD_TESTING "Build tests" ON)
