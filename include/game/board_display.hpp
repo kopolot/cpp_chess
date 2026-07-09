@@ -11,7 +11,7 @@
 namespace game {
 
 inline char pieceToChar(const board::Occupant& piece) {
-  char symbol = '.';
+  char symbol = ' ';
   switch (piece.type) {
     case PieceType::Pawn:
       symbol = 'p';
@@ -41,15 +41,18 @@ inline char pieceToChar(const board::Occupant& piece) {
 template <board::PlayableBoard Board>
 inline std::string formatBoard(const Board& board) {
   std::ostringstream out;
+  out << "    a   b   c   d   e   f   g   h\n";
+  out << "  +---+---+---+---+---+---+---+---+\n";
   for (int rank = board::kPlayableSize - 1; rank >= 0; --rank) {
-    out << (rank + 1) << ' ';
+    out << (rank + 1) << " |";
     for (int file = 0; file < board::kPlayableSize; ++file) {
       const auto occupant = board.get(file, rank);
-      out << (occupant ? pieceToChar(*occupant) : '.') << ' ';
+      out << ' ' << (occupant ? pieceToChar(*occupant) : ' ') << " |";
     }
-    out << '\n';
+    out << ' ' << (rank + 1) << '\n';
+    out << "  +---+---+---+---+---+---+---+---+\n";
   }
-  out << "  a b c d e f g h\n";
+  out << "    a   b   c   d   e   f   g   h\n";
   return out.str();
 }
 

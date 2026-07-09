@@ -6,7 +6,15 @@
 #include <string>
 #include <utility>
 
+#include "type/chess_piece.hpp"
+
 namespace game {
+
+struct ParsedMove {
+  std::pair<int, int> from;
+  std::pair<int, int> to;
+  std::optional<PieceType> promotion;
+};
 
 inline std::optional<std::pair<int, int>> parseSquare(const std::string& notation) {
   if (notation.size() != 2) {
@@ -28,15 +36,36 @@ inline std::string toNotation(int file, int rank) {
          std::string(1, static_cast<char>('1' + rank));
 }
 
-inline std::optional<std::pair<std::pair<int, int>, std::pair<int, int>>> parseMove(
-    const std::string& notation) {
-  if (notation.size() == 4) {
+inline std::optional<PieceType> parsePromotionChar(char symbol) {
+  switch (static_cast<char>(std::tolower(symbol))) {
+    case 'q':
+      return PieceType::Queen;
+    case 'r':
+      return PieceType::Rook;
+    case 'b':
+      return PieceType::Bishop;
+    case 'n':
+      return PieceType::Knight;
+    default:
+      return std::nullopt;
+  }
+}
+
+inline std::optional<ParsedMove> parseMoveExtended(const std::string& notation) {
+  if (notation.size() == 4 || notation.size() == 5) {
     const auto from = parseSquare(notation.substr(0, 2));
     const auto to = parseSquare(notation.substr(2, 2));
     if (!from || !to) {
       return std::nullopt;
     }
-    return std::make_pair(*from, *to);
+    ParsedMove move{*from, *to, std::nullopt};
+    if (notation.size() == 5) {
+      move.promotion = parsePromotionChar(notation[4]);
+      if (!move.promotion) {
+        return std::nullopt;
+      }
+    }
+    return move;
   }
 
   const auto space = notation.find(' ');
@@ -45,11 +74,49 @@ inline std::optional<std::pair<std::pair<int, int>, std::pair<int, int>>> parseM
   }
 
   const auto from = parseSquare(notation.substr(0, space));
-  const auto to = parseSquare(notation.substr(space + 1));
+  std::string rest = notation.substr(space + 1);
+  const auto second_space = rest.find(' ');
+  std::string to_notation = rest;
+  std::optional<PieceType> promotion;
+
+  if (second_space != std::string::npos) {
+    to_notation = rest.substr(0, second_space);
+    if (second_space + 1 < rest.size()) {
+      promotion = parsePromotionChar(rest[second_space + 1]);
+      if (!promotion) {
+        return std::nullopt;
+      }
+    }
+  } else if (rest.size() == 3) {
+    to_notation = rest.substr(0, 2);
+    promotion = parsePromotionChar(rest[2]);
+    if (!promotion) {
+      return std::nullopt;
+    }
+  }
+
+  const auto to = parseSquare(to_notation);
   if (!from || !to) {
     return std::nullopt;
   }
-  return std::make_pair(*from, *to);
+  return ParsedMove{*from, *to, promotion};
+}
+
+inline std::optional<std::pair<std::pair<int, int>, std::pair<int, int>>> parseMove(
+    const std::string& notation) {
+  const auto parsed = parseMoveExtended(notation);
+  if (!parsed) {
+    return std::nullopt;
+  }
+  return std::make_pair(parsed->from, parsed->to);
+}
+
+inline bool needsPromotion(int from_rank, int to_rank, PieceType type, int color) {
+  if (type != PieceType::Pawn) {
+    return false;
+  }
+  const int promotion_rank = (color == 0) ? 7 : 0;
+  return to_rank == promotion_rank;
 }
 
 }  // namespace game
