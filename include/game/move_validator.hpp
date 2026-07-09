@@ -130,8 +130,8 @@ inline bool isQueenMoveLegal(const Board& board, int from_file, int from_rank, i
 }
 
 template <board::PlayableBoard Board>
-inline bool isLegalMove(const Board& board, int from_file, int from_rank, int to_file,
-                        int to_rank, const board::Occupant& piece) {
+inline bool isPseudoLegalMove(const Board& board, int from_file, int from_rank, int to_file,
+                              int to_rank, const board::Occupant& piece) {
   if (from_file == to_file && from_rank == to_rank) {
     return false;
   }

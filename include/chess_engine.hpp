@@ -5,6 +5,7 @@
 
 #include "board/board_concept.hpp"
 #include "game/board_display.hpp"
+#include "game/game_state.hpp"
 #include "game/move_validator.hpp"
 #include "game/setup.hpp"
 #include "game/square.hpp"
@@ -22,14 +23,24 @@ class ChessEngine {
   bool tryMoveNotation(const std::string& notation);
 
   int currentTurn() const { return current_turn_; }
+  bool isGameOver() const { return game_over_; }
+  game::GameResult gameResult() const { return game_result_; }
+  std::string gameStatusMessage() const {
+    return game::gameResultMessage(game_result_, current_turn_);
+  }
+
   BoardType& getBoard() { return board_; }
   const BoardType& getBoard() const { return board_; }
   std::string formatBoard() const { return game::formatBoard(board_); }
   std::string currentPlayerName() const { return game::colorName(current_turn_); }
 
  private:
+  void updateGameState();
+
   BoardType board_;
   int current_turn_ = 0;
+  game::GameResult game_result_ = game::GameResult::InProgress;
+  bool game_over_ = false;
 };
 
 template <typename BoardType>
@@ -37,12 +48,26 @@ template <typename BoardType>
 void ChessEngine<BoardType>::startGame() {
   game::setupInitialPosition(board_);
   current_turn_ = 0;
+  game_over_ = false;
+  game_result_ = game::GameResult::InProgress;
+}
+
+template <typename BoardType>
+  requires board::PlayableBoard<BoardType>
+void ChessEngine<BoardType>::updateGameState() {
+  game_result_ = game::evaluatePosition(board_, current_turn_);
+  game_over_ = game_result_ == game::GameResult::Checkmate ||
+               game_result_ == game::GameResult::Stalemate;
 }
 
 template <typename BoardType>
   requires board::PlayableBoard<BoardType>
 bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file,
                                      int to_rank) {
+  if (game_over_) {
+    return false;
+  }
+
   const auto piece = board_.get(from_file, from_rank);
   if (!piece || piece->color != current_turn_) {
     return false;
@@ -51,14 +76,9 @@ bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file,
     return false;
   }
 
-  board::Occupant moved = *piece;
-  if (moved.type == PieceType::Pawn && (to_rank == 0 || to_rank == 7)) {
-    moved.type = PieceType::Queen;
-  }
-
-  board_.set(from_file, from_rank, std::nullopt);
-  board_.set(to_file, to_rank, moved);
+  game::applyMove(board_, from_file, from_rank, to_file, to_rank, *piece);
   current_turn_ = 1 - current_turn_;
+  updateGameState();
   return true;
 }
 

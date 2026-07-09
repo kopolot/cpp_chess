@@ -22,10 +22,23 @@ void printHelp() {
 
 void printBoard(const ChessEngine<board::Board8x8>& engine) {
   fmt::print("\n{}\n", engine.formatBoard());
+  if (engine.isGameOver()) {
+    fmt::print("{}\n", engine.gameStatusMessage());
+    fmt::print("Gra zakonczona. Wpisz 'new' aby zaczac od nowa.\n");
+    return;
+  }
   fmt::print("Tura: {}\n", engine.currentPlayerName());
+  const auto status = engine.gameStatusMessage();
+  if (!status.empty()) {
+    fmt::print("{}\n", status);
+  }
 }
 
 bool handleMove(ChessEngine<board::Board8x8>& engine, const std::string& args) {
+  if (engine.isGameOver()) {
+    fmt::print("Gra zakonczona. Wpisz 'new' aby zaczac od nowa.\n");
+    return true;
+  }
   if (args.empty()) {
     fmt::print("Uzycie: move e2e4  lub  move e2 e4\n");
     return true;
@@ -103,6 +116,11 @@ int main() {
 
     if (engine.tryMoveNotation(command)) {
       printBoard(engine);
+      continue;
+    }
+
+    if (engine.isGameOver()) {
+      fmt::print("Gra zakonczona. Wpisz 'new' aby zaczac od nowa.\n");
       continue;
     }
 
