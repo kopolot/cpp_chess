@@ -6,9 +6,39 @@
 
 #include "board/board_8x8.hpp"
 #include "chess_engine.hpp"
+#include "game/game_state.hpp"
 #include "game/square.hpp"
+#include "game/terminal_style.hpp"
 
 namespace {
+
+std::string styledStatusMessage(const ChessEngine<board::Board8x8>& engine) {
+  const auto result = engine.gameResult();
+  const int side = engine.currentTurn();
+  const std::string side_name = game::colorName(side);
+  const bool styled = game::terminal::colorsEnabled();
+
+  switch (result) {
+    case game::GameResult::InProgress:
+      return "";
+    case game::GameResult::Check:
+      return styled ? std::string(game::terminal::kCheck) + "♚ Szach! (" + side_name +
+                          " pod szachem)" + game::terminal::kReset
+                    : "Szach! (" + side_name + " pod szachem)";
+    case game::GameResult::Checkmate:
+      return styled ? std::string(game::terminal::kMate) + "♔ Mat! Wygrywaja " +
+                          game::colorName(1 - side) + '.' + game::terminal::kReset
+                    : engine.gameStatusMessage();
+    case game::GameResult::Stalemate:
+      return styled ? std::string(game::terminal::kDraw) + "♔ Pat! Remis." + game::terminal::kReset
+                    : engine.gameStatusMessage();
+    case game::GameResult::Draw:
+      return styled ? std::string(game::terminal::kDraw) +
+                          "½ Remis (50 ruchow lub 3-krotne powtorzenie)." + game::terminal::kReset
+                    : engine.gameStatusMessage();
+  }
+  return "";
+}
 
 void printHelp() {
   fmt::print(
@@ -23,14 +53,14 @@ void printHelp() {
 }
 
 void printBoard(const ChessEngine<board::Board8x8>& engine) {
-  fmt::print("\n{}\n", engine.formatBoard());
+  fmt::print("\n{}\n", engine.formatBoardStyled());
   if (engine.isGameOver()) {
-    fmt::print("{}\n", engine.gameStatusMessage());
+    fmt::print("{}\n", styledStatusMessage(engine));
     fmt::print("Gra zakonczona. Wpisz 'new' aby zaczac od nowa.\n");
     return;
   }
   fmt::print("Tura: {}\n", engine.currentPlayerName());
-  const auto status = engine.gameStatusMessage();
+  const auto status = styledStatusMessage(engine);
   if (!status.empty()) {
     fmt::print("{}\n", status);
   }
@@ -96,7 +126,7 @@ int main() {
   ChessEngine<board::Board8x8> engine;
   engine.startGame();
 
-  fmt::print("cpp_chess CLI (MVP)\n");
+  fmt::print("♟ cpp_chess CLI\n");
   printHelp();
   printBoard(engine);
 

@@ -38,6 +38,7 @@ class ChessEngine {
   BoardType& getBoard() { return board_; }
   const BoardType& getBoard() const { return board_; }
   std::string formatBoard() const { return game::formatBoard(board_); }
+  std::string formatBoardStyled() const { return game::formatBoardStyled(board_); }
   std::string currentPlayerName() const { return game::colorName(current_turn_); }
 
  private:
