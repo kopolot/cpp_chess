@@ -191,6 +191,29 @@ TEST(GameStateTest, EnPassantCapture) {
   EXPECT_EQ(piece->color, 0);
 }
 
+TEST(GameStateTest, ParsesSpacedMoveNotation) {
+  const auto move = game::parseMoveExtended("e2 e4");
+  ASSERT_TRUE(move.has_value());
+  EXPECT_EQ(move->from, std::make_pair(4, 1));
+  EXPECT_EQ(move->to, std::make_pair(4, 3));
+
+  const auto rook_move = game::parseMoveExtended("a1 a2");
+  ASSERT_TRUE(rook_move.has_value());
+  EXPECT_EQ(rook_move->from, std::make_pair(0, 0));
+  EXPECT_EQ(rook_move->to, std::make_pair(0, 1));
+
+  const auto promo = game::parseMoveExtended("a7 a8 q");
+  ASSERT_TRUE(promo.has_value());
+  EXPECT_EQ(promo->promotion, PieceType::Queen);
+}
+
+TEST(GameStateTest, SpacedMoveNotationInEngine) {
+  ChessEngine<board::Board8x8> engine;
+  engine.startGame();
+  EXPECT_TRUE(engine.tryMoveNotation("e2 e4"));
+  EXPECT_TRUE(engine.tryMoveNotation("g8 f6"));
+}
+
 TEST(GameStateTest, EnPassantCaptureAliasToVictimSquare) {
   ChessEngine<board::Board8x8> engine;
   engine.startGame();
