@@ -4,43 +4,59 @@
 
 ## W skrócie
 
-**Silnik szachowy C++20** z konsolowym CLI. Działają dwie implementacje planszy (`Board8x8`, `Board12x12`), pełna logika MVP (ruchy, szach/mat/pat, roszada, en passant, promocja, remisy) oraz testy GTest.
+**Silnik szachowy C++20** z konsolowym CLI i prostym **web GUI** (vanilla JS + REST API). Dwie implementacje planszy (`Board8x8`, `Board12x12`), pełna logika MVP oraz konteneryzacja z nginx.
 
-## Etap: MVP CLI — funkcjonalny prototyp
+## Etap: MVP + web GUI
 
 ```
-[████████████████░░░░] ~80%
+[██████████████████░░] ~85%
 ```
 
 | Zrobione | Do zrobienia |
 |----------|--------------|
-| CMake + Conan + GTest + fmt | GUI / Web API |
-| `Board8x8` i `Board12x12` (concept `PlayableBoard`) | Notacja SAN / PGN |
-| `ChessEngine<BoardType>` — pełna logika gry | Silnik AI |
-| CLI: `board`, `move`, `new`, `help`, `exit` | Zegar szachowy |
-| Wybór planszy przy starcie (`--board 8x8\|12x12`) | Persystencja partii |
-| Szach, mat, pat, roszada, en passant, promocja | |
-| Remis: 50 ruchów, 3× powtórzenie | |
-| Wyświetlanie unicode + kolory ANSI | |
-| ~40 testów GTest (plansza + ruchy) | |
-
-## Ostatni commit
-
-`37dfe46` — *refactor: update project structure and add formatting hooks*
+| CMake + Conan + GTest + fmt | GUI desktop (Qt/SDL) |
+| `Board8x8` i `Board12x12` | Notacja SAN / PGN |
+| Pełna logika gry (szach, roszada, en passant…) | Silnik AI |
+| CLI z `--board 8x8\|12x12` | Zegar szachowy |
+| HTTP API (`cpp-httplib`) | Persystencja partii (DB) |
+| Web GUI (HTML/CSS/JS, bez frameworka) | |
+| Docker Compose: nginx + backend | |
+| ~40 testów GTest | |
 
 ## Uruchomienie
 
+### CLI
 ```bash
-./bin/conan-install    # pierwszy raz lub po zmianie conanfile.txt
-./bin/cmake            # build Debug
-./build/cpp_chess_cli                    # domyslnie Board8x8
-./build/cpp_chess_cli --board 12x12      # Board12x12 z obramowaniem
-./build/cpp_chess_cli --help
-cd build && ctest --output-on-failure
+./bin/conan-install
+./bin/cmake
+./build/cpp_chess_cli
+./build/cpp_chess_cli --board 12x12
 ```
+
+### Web (lokalnie)
+```bash
+./build/cpp_chess_web -p 8081
+# osobno serwuj web/public lub użyj docker-compose
+```
+
+### Web (Docker + nginx)
+```bash
+./bin/docker-up
+# http://localhost:8080
+```
+
+## API (skrót)
+
+| Metoda | Ścieżka | Opis |
+|--------|---------|------|
+| GET | `/api/health` | healthcheck |
+| POST | `/api/games` | nowa gra → `{ gameId, state }` |
+| GET | `/api/games/:id` | stan gry |
+| POST | `/api/games/:id/move` | `{ from, to, promotion? }` |
+| POST | `/api/games/:id/reset` | reset pozycji |
 
 ## Następny krok (rekomendacja)
 
-1. Notacja SAN i eksport/import PGN
-2. Zegar (Fischer / blitz) w `GameContext`
-3. Prosty silnik minimax jako osobny moduł
+1. Podpiąć `Board12x12` także w web API (flaga przy tworzeniu gry)
+2. Notacja SAN i eksport PGN
+3. WebSocket zamiast pollingu (opcjonalnie)

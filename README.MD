@@ -4,7 +4,7 @@ Modułowy silnik szachowy w **C++20** z konsolowym interfejsem.
 
 ## Status
 
-MVP CLI — ruchy figur, szach/mat/pat, roszada, en passant, promocja, remisy. Dwie implementacje planszy do wyboru przy starcie. Szczegóły: [STATUS.md](STATUS.md).
+MVP CLI + web GUI (REST API, nginx, vanilla frontend). Szczegóły: [STATUS.md](STATUS.md).
 
 ## Wymagania
 
@@ -12,6 +12,7 @@ MVP CLI — ruchy figur, szach/mat/pat, roszada, en passant, promocja, remisy. D
 - Conan 2
 - Kompilator z obsługą C++20 (GCC/Clang)
 - clang-format, clang-tidy (opcjonalnie)
+- Docker + Docker Compose (dla web stacku)
 
 ## Szybki start
 
@@ -22,15 +23,26 @@ MVP CLI — ruchy figur, szach/mat/pat, roszada, en passant, promocja, remisy. D
 ./build/cpp_chess_cli --board 12x12
 ```
 
+### Web GUI
+
+```bash
+./bin/docker-up          # nginx na http://localhost:8080
+# lub lokalnie:
+./build/cpp_chess_web -p 8081
+```
+
 ## Struktura
 
 | Katalog | Opis |
 |---------|------|
 | `cli/` | Punkt wejścia — pętla komend konsoli |
+| `web/server/` | Serwer HTTP (REST API) |
+| `web/public/` | Frontend (HTML/CSS/JS) |
+| `docker/` | Dockerfile backendu + nginx + compose |
 | `include/` | Silnik (`chess_engine.hpp`), logika gry (`game/`), plansze (`board/`) |
 | `src/board/` | Implementacje `Board8x8` i `Board12x12` |
 | `test/` | Testy GTest |
-| `bin/` | Skrypty build/test/doc |
+| `bin/` | Skrypty build/test/doc/docker |
 
 ## Dla agentów AI
 

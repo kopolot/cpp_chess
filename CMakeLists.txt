@@ -7,8 +7,11 @@ project(cpp_chess VERSION 1.0 LANGUAGES CXX)
 # Ustaw standard C++
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-# statyczne sprawdzanie kodu
-set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=*")
+# statyczne sprawdzanie kodu (tylko gdy clang-tidy jest dostępny)
+find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+if(CLANG_TIDY_EXE)
+    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=*")
+endif()
 
 # Domyślny typ budowania
 if(NOT CMAKE_BUILD_TYPE)
@@ -41,6 +44,24 @@ set_my_compile_options(cpp_chess_cli)
 target_include_directories(cpp_chess_cli PRIVATE include)
 find_package(fmt REQUIRED)
 target_link_libraries(cpp_chess_cli PRIVATE fmt::fmt cpp_chess_board)
+
+# Web API (HTTP)
+option(BUILD_WEB "Build HTTP server for web GUI" ON)
+
+if(BUILD_WEB)
+    find_package(httplib REQUIRED)
+    find_package(nlohmann_json REQUIRED)
+
+    add_executable(cpp_chess_web web/server/main.cpp)
+    set_my_compile_options(cpp_chess_web)
+    target_include_directories(cpp_chess_web PRIVATE include)
+    target_link_libraries(cpp_chess_web PRIVATE
+        cpp_chess_board
+        httplib::httplib
+        nlohmann_json::nlohmann_json
+        pthread
+    )
+endif()
 
 # Testy
 option(BUILD_TESTING "Build tests" ON)

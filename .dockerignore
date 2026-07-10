@@ -1,0 +1,12 @@
+build/
+.git/
+.cache/
+html/
+latex/
+.vscode/
+.cursor/
+*.md
+!README.MD
+note.md
+AGENTS.md
+STATUS.md

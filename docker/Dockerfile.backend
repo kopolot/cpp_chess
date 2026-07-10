@@ -1,0 +1,25 @@
+FROM fedora:41 AS builder
+
+RUN dnf install -y cmake gcc-c++ git ninja-build python3-pip && dnf clean all
+RUN pip install conan --break-system-packages
+
+WORKDIR /src
+COPY . .
+
+RUN conan profile detect --force
+RUN rm -rf build && mkdir build \
+    && conan install . --output-folder=build --build=missing \
+    && cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build build --target cpp_chess_web -j"$(nproc)"
+
+FROM fedora:41
+
+RUN dnf install -y libstdc++ && dnf clean all
+
+WORKDIR /app
+COPY --from=builder /src/build/cpp_chess_web /app/cpp_chess_web
+
+ENV CPP_CHESS_PORT=8081
+EXPOSE 8081
+
+CMD ["/app/cpp_chess_web"]
