@@ -1,40 +1,46 @@
 # STATUS — cpp_chess
 
-> Ostatnia aktualizacja: 2025-07-09
+> Ostatnia aktualizacja: 2026-07-10
 
 ## W skrócie
 
-**Silnik szachowy C++20** z konsolowym CLI. Projekt ma działający toolchain, ale **logika gry jeszcze nie istnieje** — są tylko szkielety nagłówków i pętla REPL.
+**Silnik szachowy C++20** z konsolowym CLI. Działają dwie implementacje planszy (`Board8x8`, `Board12x12`), pełna logika MVP (ruchy, szach/mat/pat, roszada, en passant, promocja, remisy) oraz testy GTest.
 
-## Etap: wczesny prototyp / szkielet
+## Etap: MVP CLI — funkcjonalny prototyp
 
 ```
-[████████░░░░░░░░░░░░] ~35%
+[████████████████░░░░] ~80%
 ```
 
 | Zrobione | Do zrobienia |
 |----------|--------------|
-| CMake + Conan + GTest + fmt | Wybór struktury planszy |
-| Doxygen, clang-format, VS Code tasks | Implementacja `BoardType` |
-| Szablon `ChessEngine<BoardType>` | Logika ruchów figur |
-| Klasy figur (nagłówki) | Szach, mat, pat, roszada, en passant |
-| CLI REPL (exit + echo) | Podłączenie silnika do CLI |
-| Placeholder testów | Testy szachowe |
+| CMake + Conan + GTest + fmt | GUI / Web API |
+| `Board8x8` i `Board12x12` (concept `PlayableBoard`) | Notacja SAN / PGN |
+| `ChessEngine<BoardType>` — pełna logika gry | Silnik AI |
+| CLI: `board`, `move`, `new`, `help`, `exit` | Zegar szachowy |
+| Wybór planszy przy starcie (`--board 8x8\|12x12`) | Persystencja partii |
+| Szach, mat, pat, roszada, en passant, promocja | |
+| Remis: 50 ruchów, 3× powtórzenie | |
+| Wyświetlanie unicode + kolory ANSI | |
+| ~40 testów GTest (plansza + ruchy) | |
 
 ## Ostatni commit
 
-`d54afe2` — *cli entrypoint and chess pieces* (nagłówki figur + szkielet CLI)
+`37dfe46` — *refactor: update project structure and add formatting hooks*
 
-## Następny krok (rekomendacja)
-
-1. Zdecydować: tablica 8×8 vs 12×12 z borderami (`no_borders?` to szkic 12×12)
-2. Dodać `include/board/...` + implementację w `src/`
-3. Zaimplementować `ChessEngine::startGame()` i podstawowy stan gry
-4. Podłączyć CLI: komendy `board`, `move e2e4`, `exit`
-
-## Szybki start
+## Uruchomienie
 
 ```bash
 ./bin/conan-install    # pierwszy raz lub po zmianie conanfile.txt
-./build/cpp_chess_cli  # uruchom CLI
+./bin/cmake            # build Debug
+./build/cpp_chess_cli                    # domyslnie Board8x8
+./build/cpp_chess_cli --board 12x12      # Board12x12 z obramowaniem
+./build/cpp_chess_cli --help
+cd build && ctest --output-on-failure
 ```
+
+## Następny krok (rekomendacja)
+
+1. Notacja SAN i eksport/import PGN
+2. Zegar (Fischer / blitz) w `GameContext`
+3. Prosty silnik minimax jako osobny moduł

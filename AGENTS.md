@@ -10,35 +10,36 @@ Modułowy **silnik szachowy w C++20** z wymiennym interfejsem użytkownika. Doce
 - **Interfejs** — na razie konsola CLI; później GUI lub Web API
 - Silnik i UI są **oddzielone** — można podmieniać implementację planszy lub front-end bez ruszania reszty
 
-## Aktualny etap (lipiec 2025)
+## Aktualny etap (lipiec 2026)
 
 | Obszar | Status |
 |--------|--------|
 | Toolchain (CMake, Conan, Doxygen, clang-format, clang-tidy) | Gotowe |
-| CLI — pętla REPL (`exit`, echo komend) | Szkielet |
-| `ChessEngine<BoardType>` — szablon silnika | Nagłówek, bez implementacji |
-| `PieceType` + `board::Occupant` | Gotowe; logika w `include/game/` |
-| Reprezentacja planszy (8×8, 64-lista, 12×12…) | **Nie wybrana** — patrz `note.md` |
-| `src/`, `engine/` | Puste katalogi |
-| Testy GTest | Placeholder (`dodaj(2,3)==5`), brak testów szachowych |
+| CLI — REPL (`board`, `move`, `new`, `help`, `exit`) | Gotowe |
+| Wybór planszy przy starcie (`--board 8x8\|12x12`) | Gotowe |
+| `ChessEngine<BoardType>` — pełna logika gry | Gotowe |
+| `Board8x8` + `Board12x12` (concept `PlayableBoard`) | Gotowe |
+| Szach, mat, pat, roszada, en passant, promocja, remisy | Gotowe |
+| Testy GTest | ~40 testów (`test_board`, `test_moves`) |
 
-**Następny logiczny krok:** wybrać reprezentację planszy, zaimplementować `BoardType`, podłączyć silnik do CLI.
+**Następny logiczny krok:** notacja SAN / PGN, zegar, silnik AI.
 
 ## Struktura katalogów
 
 ```
 cpp_chess/
-├── cli/main.cpp          # Punkt wejścia CLI (REPL)
+├── cli/main.cpp          # Punkt wejścia CLI (REPL + --board)
 ├── include/
 │   ├── chess_engine.hpp  # Szablon ChessEngine<BoardType>
+│   ├── board/            # Board8x8, Board12x12, concept PlayableBoard
+│   ├── game/             # Logika gry (ruchy, szach, roszada, …)
 │   └── type/chess_piece.hpp
-├── src/                  # Implementacje (puste — tu trafi logika)
-├── engine/               # Rezerwa na moduł silnika (puste)
-├── test/test_main.cpp    # Testy GTest
+├── src/board/            # Implementacje plansz
+├── test/                 # test_board.cpp, test_moves.cpp
 ├── bin/                  # Skrypty pomocnicze (patrz niżej)
 ├── conanfile.txt         # fmt, gtest
 ├── CMakeLists.txt
-├── note.md               # Notatki autora + założenia projektu
+├── note.md               # Notatki autora + plany GUI
 └── STATUS.md             # Krótkie podsumowanie etapu
 ```
 
@@ -72,22 +73,20 @@ Binaria po buildzie: `build/cpp_chess_cli`, `build/tests`.
 
 - **Standard:** C++20
 - **Formatowanie:** Google style (`.clang-format`)
-- **Nagłówki:** `include/`, implementacje w `src/` lub `engine/`
+- **Nagłówki:** `include/`, implementacje plansz w `src/board/`
 - **Zależności:** Conan (`fmt` w CLI, `gtest` w testach)
 - **Język komentarzy:** polski lub angielski — zachować spójność w obrębie pliku
 - **Kolor figur:** `0` = biały, `1` = czarny (`chess_piece.hpp`)
 - Nie dodawaj `build/`, `html/`, `latex/` do gita (są w `.gitignore`)
 
-## Decyzje architektoniczne (otwarte)
+## Decyzje architektoniczne
 
-Z `note.md` — wybór reprezentacji planszy:
+Zaimplementowane reprezentacje planszy (oba spełniają `PlayableBoard`):
 
-1. Tablica 8×8
-2. Lista 64 pól
-3. Tablica 12×12 (z obramowaniem — patrz `no_borders?`)
-4. Lista ~140 elementów
+1. **`Board8x8`** — granice przez sprawdzanie indeksów 0..7
+2. **`Board12x12`** — obramowanie wykrywane kolizją, offset 2
 
-`ChessEngine` jest szablonem na `BoardType` — wybór struktury planszy wpływa na cały silnik.
+CLI wybiera implementację flagą `--board 8x8` (domyślnie) lub `--board 12x12`. `ChessEngine` jest szablonem na `BoardType` — logika gry jest wspólna.
 
 ## Co robić / czego unikać
 

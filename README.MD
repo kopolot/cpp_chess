@@ -4,7 +4,7 @@ Modułowy silnik szachowy w **C++20** z konsolowym interfejsem.
 
 ## Status
 
-Wczesny szkielet — toolchain działa, logika gry w trakcie planowania. Szczegóły: [STATUS.md](STATUS.md).
+MVP CLI — ruchy figur, szach/mat/pat, roszada, en passant, promocja, remisy. Dwie implementacje planszy do wyboru przy starcie. Szczegóły: [STATUS.md](STATUS.md).
 
 ## Wymagania
 
@@ -17,7 +17,9 @@ Wczesny szkielet — toolchain działa, logika gry w trakcie planowania. Szczeg�
 
 ```bash
 ./bin/conan-install
+./bin/cmake
 ./build/cpp_chess_cli
+./build/cpp_chess_cli --board 12x12
 ```
 
 ## Struktura
@@ -25,8 +27,8 @@ Wczesny szkielet — toolchain działa, logika gry w trakcie planowania. Szczeg�
 | Katalog | Opis |
 |---------|------|
 | `cli/` | Punkt wejścia — pętla komend konsoli |
-| `include/` | Nagłówki silnika i figur |
-| `src/`, `engine/` | Implementacje (w przygotowaniu) |
+| `include/` | Silnik (`chess_engine.hpp`), logika gry (`game/`), plansze (`board/`) |
+| `src/board/` | Implementacje `Board8x8` i `Board12x12` |
 | `test/` | Testy GTest |
 | `bin/` | Skrypty build/test/doc |
 
