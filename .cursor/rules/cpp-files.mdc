@@ -1,0 +1,47 @@
+---
+description: Konwencje C++ dla plików źródłowych cpp_chess
+globs: "{**/*.cpp,**/*.hpp,**/*.h}"
+alwaysApply: false
+---
+
+# C++ w cpp_chess
+
+## Styl
+
+- Standard C++20, format Google (`clang-format`)
+- Include guards: `#ifndef NAME_HPP` / `#define` / `#endif`
+- Nagłówki w `include/`, implementacje w `src/` lub `engine/`
+
+## Figury i plansza
+
+- Kolor: `0` = biały, `1` = czarny
+- Typ figury: `PieceType` w `type/chess_piece.hpp`; na planszy `board::Occupant{color, type}`
+- Logika ruchów i stan gry: `include/game/` (`move_validator.hpp`, `game_state.hpp`, `attack.hpp`)
+- Nie hardcoduj rozmiaru planszy — używaj `board::kPlayableSize` i konceptu `PlayableBoard`
+
+## Przykład struktury pliku
+
+```cpp
+// include/game/example.hpp
+#include "board/board_concept.hpp"
+
+namespace game {
+
+template <board::PlayableBoard Board>
+inline bool example(const Board& board, int color) {
+  // ...
+  return true;
+}
+
+}  // namespace game
+```
+
+## IDE (clangd)
+
+Po `./bin/conan-install` lub rekonfiguracji CMake w `build/` powstaje `compile_commands.json`.
+Symlink w korzeniu repo: `ln -sf build/compile_commands.json compile_commands.json`.
+
+## Testy
+
+- GTest w `test/`, rejestracja przez `add_test` w `CMakeLists.txt`
+- Testuj logikę silnika w `test/test_moves.cpp`, nie placeholdery

@@ -17,7 +17,7 @@ Modułowy **silnik szachowy w C++20** z wymiennym interfejsem użytkownika. Doce
 | Toolchain (CMake, Conan, Doxygen, clang-format, clang-tidy) | Gotowe |
 | CLI — pętla REPL (`exit`, echo komend) | Szkielet |
 | `ChessEngine<BoardType>` — szablon silnika | Nagłówek, bez implementacji |
-| Figury (`ChessPiece`, Pawn…King) | Nagłówki, bez `.cpp` |
+| `PieceType` + `board::Occupant` | Gotowe; logika w `include/game/` |
 | Reprezentacja planszy (8×8, 64-lista, 12×12…) | **Nie wybrana** — patrz `note.md` |
 | `src/`, `engine/` | Puste katalogi |
 | Testy GTest | Placeholder (`dodaj(2,3)==5`), brak testów szachowych |
@@ -65,6 +65,9 @@ cd build && ctest --output-on-failure
 
 Binaria po buildzie: `build/cpp_chess_cli`, `build/tests`.
 
+**clangd / Go to Definition:** CMake generuje `build/compile_commands.json`. Symlink w korzeniu:
+`ln -sf build/compile_commands.json compile_commands.json` — potem przeładuj okno edytora.
+
 ## Konwencje kodu
 
 - **Standard:** C++20
@@ -90,7 +93,7 @@ Z `note.md` — wybór reprezentacji planszy:
 
 **Rób:**
 - Małe, skupione zmiany zgodne z modularnością silnik ↔ UI
-- Implementacje figur w `.cpp` w `src/` lub `engine/`
+- Logikę gry w `include/game/` (szablony na `BoardType`) lub `.cpp` w `src/` gdy potrzeba
 - Prawdziwe testy GTest dla ruchów, szachu, roszady itd.
 - Uruchamiaj `./bin/cmake` po większych zmianach
 
