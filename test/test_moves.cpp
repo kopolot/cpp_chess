@@ -191,6 +191,18 @@ TEST(GameStateTest, EnPassantCapture) {
   EXPECT_EQ(piece->color, 0);
 }
 
+TEST(GameStateTest, EnPassantCaptureAliasToVictimSquare) {
+  ChessEngine<board::Board8x8> engine;
+  engine.startGame();
+  EXPECT_TRUE(engine.tryMoveNotation("e2e4"));
+  EXPECT_TRUE(engine.tryMoveNotation("a7a6"));
+  EXPECT_TRUE(engine.tryMoveNotation("e4e5"));
+  EXPECT_TRUE(engine.tryMoveNotation("d7d5"));
+  EXPECT_TRUE(engine.tryMoveNotation("e5d5"));
+  EXPECT_TRUE(engine.getBoard().isEmpty(3, 4));
+  EXPECT_TRUE(engine.getBoard().get(3, 5).has_value());
+}
+
 TEST(GameStateTest, PromotionToKnight) {
   ChessEngine<board::Board8x8> engine;
   engine.getBoard().clear();

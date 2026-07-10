@@ -6,6 +6,7 @@
 
 #include "board/board_8x8.hpp"
 #include "chess_engine.hpp"
+#include "game/en_passant.hpp"
 #include "game/game_state.hpp"
 #include "game/square.hpp"
 #include "game/terminal_style.hpp"
@@ -49,7 +50,12 @@ void printHelp() {
       "  move e7e8q      - ruch z promocja (q/r/b/n)\n"
       "  move e2 e4      - wykonaj ruch (z odstepami)\n"
       "  new             - nowa gra od pozycji startowej\n"
-      "  exit            - zakoncz program\n");
+      "  exit            - zakoncz program\n"
+      "\n"
+      "Bicie na przelocie:\n"
+      "  Po ruchu piona o 2 pola mozesz zbic go pionem z sasiedniej kolumny.\n"
+      "  Wpisz ruch na pole za bitym pionem (np. e5d6) lub na pole piona (e5d5).\n"
+      "  Dostepne tylko przez jeden ruch — CLI pokaze podpowiedz.\n");
 }
 
 void printBoard(const ChessEngine<board::Board8x8>& engine) {
@@ -60,6 +66,9 @@ void printBoard(const ChessEngine<board::Board8x8>& engine) {
     return;
   }
   fmt::print("Tura: {}\n", engine.currentPlayerName());
+  if (const auto hint = engine.enPassantHint()) {
+    fmt::print("{}\n", *hint);
+  }
   const auto status = styledStatusMessage(engine);
   if (!status.empty()) {
     fmt::print("{}\n", status);
@@ -116,7 +125,15 @@ bool handleMove(ChessEngine<board::Board8x8>& engine, const std::string& args) {
     return true;
   }
 
-  fmt::print("Niepoprawny lub niedozwolony ruch.\n");
+  if (parsed && engine.getContext().en_passant) {
+    fmt::print(
+        "Niepoprawny ruch. Bicie na przelocie? Wpisz np. {} (pole za bitym pionem).\n",
+        game::toNotation(parsed->from.first, parsed->from.second) +
+            game::toNotation(engine.getContext().en_passant->first,
+                             engine.getContext().en_passant->second));
+  } else {
+    fmt::print("Niepoprawny lub niedozwolony ruch.\n");
+  }
   return true;
 }
 

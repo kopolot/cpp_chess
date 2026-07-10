@@ -6,6 +6,7 @@
 
 #include "board/board_concept.hpp"
 #include "game/board_display.hpp"
+#include "game/en_passant.hpp"
 #include "game/game_context.hpp"
 #include "game/game_state.hpp"
 #include "game/move_validator.hpp"
@@ -40,6 +41,9 @@ class ChessEngine {
   std::string formatBoard() const { return game::formatBoard(board_); }
   std::string formatBoardStyled() const { return game::formatBoardStyled(board_); }
   std::string currentPlayerName() const { return game::colorName(current_turn_); }
+  std::optional<std::string> enPassantHint() const {
+    return game::enPassantHint(board_, context_, current_turn_);
+  }
 
  private:
   void recordPosition();
@@ -107,12 +111,20 @@ bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file, 
     return false;
   }
 
-  if (!game::isLegalMove(board_, context_, from_file, from_rank, to_file, to_rank, *piece,
+  int dest_file = to_file;
+  int dest_rank = to_rank;
+  if (const auto resolved = game::resolveEnPassantDestination(
+          board_, context_, from_file, from_rank, to_file, to_rank, *piece)) {
+    dest_file = resolved->first;
+    dest_rank = resolved->second;
+  }
+
+  if (!game::isLegalMove(board_, context_, from_file, from_rank, dest_file, dest_rank, *piece,
                          promotion)) {
     return false;
   }
 
-  game::applyMove(board_, from_file, from_rank, to_file, to_rank, *piece, context_, promotion);
+  game::applyMove(board_, from_file, from_rank, dest_file, dest_rank, *piece, context_, promotion);
   current_turn_ = 1 - current_turn_;
   recordPosition();
   updateGameState();
