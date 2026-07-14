@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import ChessBoard from './components/ChessBoard.vue'
 import { api, setPlayerId } from './api.js'
+import { createGameSocket } from './gameSocket.js'
 
 const NAME_KEY = 'cpp_chess_player_name'
 const GAME_KEY = 'cpp_chess_game_id'
@@ -26,9 +27,10 @@ const hint = ref('')
 const modeInfo = ref('')
 const lobbyInfo = ref('')
 
-let pollTimer = null
 let searchTimer = null
 let lobbyTimer = null
+let gameSocket = null
+const pendingFromTo = ref(null)
 
 const highlightMove = computed(() => lastAiMove.value || meta.value?.lastMove || null)
 
@@ -51,13 +53,6 @@ function isPlayerTurn() {
   return true
 }
 
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-}
-
 function stopSearch() {
   searching.value = false
   if (searchTimer) {
@@ -66,19 +61,11 @@ function stopSearch() {
   }
 }
 
-function startGamePolling() {
-  stopPolling()
-  if (meta.value?.mode !== 'online' || !gameId.value) return
-  pollTimer = setInterval(async () => {
-    try {
-      const payload = await api(`/games/${gameId.value}`)
-      if (payload.meta?.version !== knownVersion.value) {
-        applyPayload(payload)
-      }
-    } catch (error) {
-      message.value = error.message
-    }
-  }, 1200)
+function closeSocket() {
+  if (gameSocket) {
+    gameSocket.close()
+    gameSocket = null
+  }
 }
 
 function renderStatus() {
@@ -99,9 +86,6 @@ function renderStatus() {
   }
 
   hint.value = state.value.enPassantHint || ''
-  if (!message.value || meta.value?.mode !== 'online') {
-    // keep explicit matchmaking messages when online
-  }
   if (state.value.message) {
     message.value = state.value.message
   }
@@ -114,13 +98,15 @@ function renderStatus() {
       : `Tryb AI (${level}). Grasz: ${you}.`
   } else if (meta.value?.mode === 'online') {
     const you = meta.value.playerColor === 'black' ? 'czarne' : 'białe'
-    modeInfo.value = `Online vs ${meta.value.opponentName || 'przeciwnik'} · grasz: ${you}`
+    modeInfo.value = `Online (WebSocket) vs ${meta.value.opponentName || 'przeciwnik'} · grasz: ${you}`
   } else {
     modeInfo.value = 'Tryb lokalny — dwóch graczy przy tym samym ekranie'
   }
 }
 
 function applyPayload(payload) {
+  if (!payload?.gameId) return
+
   gameId.value = payload.gameId
   state.value = payload.state
   meta.value = payload.meta || null
@@ -141,7 +127,47 @@ function applyPayload(payload) {
 
   localStorage.setItem(GAME_KEY, gameId.value)
   renderStatus()
-  startGamePolling()
+}
+
+function onSocketMessage(data) {
+  if (!data?.type) return
+
+  if (data.type === 'error') {
+    message.value = data.message || 'Błąd WebSocket'
+    if (data.needsPromotion && pendingFromTo.value) {
+      pendingPromotion.value = { ...pendingFromTo.value }
+    }
+    selected.value = null
+    return
+  }
+
+  if (data.type === 'joined' || data.type === 'state') {
+    pendingFromTo.value = null
+    applyPayload(data)
+    return
+  }
+
+  if (data.type === 'opponent_left') {
+    applyPayload(data)
+    message.value =
+      data.reason === 'disconnect'
+        ? 'Przeciwnik opuścił grę — wygrana walkowerem.'
+        : data.state?.message || 'Przeciwnik się poddał.'
+  }
+}
+
+async function ensureOnlineSocket(targetGameId) {
+  closeSocket()
+  gameSocket = createGameSocket({
+    onMessage: onSocketMessage,
+    onClose: () => {
+      if (meta.value?.mode === 'online' && state.value && !state.value.gameOver) {
+        message.value = 'Utracono połączenie WebSocket.'
+      }
+    },
+  })
+  await gameSocket.connect()
+  gameSocket.joinGame(targetGameId)
 }
 
 async function refreshLobby() {
@@ -166,7 +192,7 @@ function storedName() {
 
 async function createAiOrLocalGame() {
   stopSearch()
-  stopPolling()
+  closeSocket()
   message.value = ''
   const body =
     mode.value === 'ai'
@@ -188,9 +214,8 @@ async function createAiOrLocalGame() {
 async function enterOnlineMatch(ticket) {
   stopSearch()
   setPlayerId(ticket.playerId)
-  const payload = await api(`/games/${ticket.gameId}`)
-  applyPayload(payload)
-  message.value = `Sparowano z ${ticket.opponentName || 'przeciwnikiem'}!`
+  message.value = `Sparowano z ${ticket.opponentName || 'przeciwnikiem'}! Łączenie WS…`
+  await ensureOnlineSocket(ticket.gameId)
   await refreshLobby()
 }
 
@@ -207,6 +232,7 @@ async function pollSearch() {
 async function findOpponent() {
   mode.value = 'online'
   searching.value = true
+  closeSocket()
   message.value = 'Szukam losowego przeciwnika…'
 
   const payload = await api('/matchmaking/join', {
@@ -244,6 +270,22 @@ async function sendMove(from, to, promotion) {
   if (!isPlayerTurn()) {
     message.value =
       meta.value?.mode === 'online' ? 'Teraz kolej przeciwnika.' : 'Teraz kolej AI.'
+    return
+  }
+
+  if (meta.value?.mode === 'online') {
+    if (!gameSocket) {
+      message.value = 'Brak połączenia WebSocket.'
+      return
+    }
+    try {
+      pendingPromotion.value = null
+      pendingFromTo.value = { from, to }
+      gameSocket.move(from, to, promotion)
+      selected.value = null
+    } catch (error) {
+      message.value = error.message
+    }
     return
   }
 
@@ -286,6 +328,7 @@ function onSquareClick(name) {
     selected.value = name
     return
   }
+
   sendMove(selected.value, name)
 }
 
@@ -300,6 +343,15 @@ async function resetGame() {
   }
   const payload = await api(`/games/${gameId.value}/reset`, { method: 'POST' })
   applyPayload(payload)
+}
+
+function resignOnline() {
+  if (!gameSocket || meta.value?.mode !== 'online') return
+  try {
+    gameSocket.resign()
+  } catch (error) {
+    message.value = error.message
+  }
 }
 
 async function onNewGame() {
@@ -322,6 +374,9 @@ onMounted(async () => {
     if (savedId && playerId) {
       const payload = await api(`/games/${savedId}`)
       applyPayload(payload)
+      if (payload.meta?.mode === 'online' && !payload.state?.gameOver) {
+        await ensureOnlineSocket(savedId)
+      }
       await refreshLobby()
       return
     }
@@ -334,8 +389,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  stopPolling()
   stopSearch()
+  closeSocket()
   if (lobbyTimer) clearInterval(lobbyTimer)
 })
 </script>
@@ -344,7 +399,7 @@ onUnmounted(() => {
   <main class="layout">
     <header class="header">
       <h1>cpp_chess</h1>
-      <p class="subtitle">Vue GUI · AI, lokalnie albo online</p>
+      <p class="subtitle">Vue GUI · AI, lokalnie albo online (WebSocket)</p>
     </header>
 
     <section class="panel status-panel">
@@ -413,6 +468,14 @@ onUnmounted(() => {
         @click="cancelSearch().catch((e) => (message = e.message))"
       >
         Anuluj szukanie
+      </button>
+      <button
+        v-if="mode === 'online' && meta?.mode === 'online' && state && !state.gameOver"
+        type="button"
+        class="secondary"
+        @click="resignOnline"
+      >
+        Poddaj się
       </button>
       <button
         v-if="mode !== 'online'"

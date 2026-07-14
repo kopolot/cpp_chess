@@ -1,7 +1,7 @@
 [requires]
 gtest/1.14.0
 fmt/11.2.0
-cpp-httplib/0.18.3
+cpp-httplib/0.47.0
 nlohmann_json/3.11.3
 
 [generators]

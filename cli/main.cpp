@@ -163,6 +163,11 @@ std::string styledStatusMessage(const ChessEngine<BoardType>& engine) {
                           "½ Remis (50 ruchow lub 3-krotne powtorzenie)." +
                           game::terminal::kReset
                     : engine.gameStatusMessage();
+    case game::GameResult::Resignation:
+      return styled ? std::string(game::terminal::kMate) +
+                          "⚑ Poddanie! Wygrywaja " + game::colorName(1 - side) +
+                          '.' + game::terminal::kReset
+                    : engine.gameStatusMessage();
   }
   return "";
 }

@@ -1,10 +1,12 @@
 #include <httplib.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <deque>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -27,12 +29,14 @@ constexpr int kDefaultPort = 8081;
 
 enum class GameMode { Local, VsAi, Online };
 
+struct WsConnection;
+
 struct GameSession {
   ChessEngine<board::Board8x8> engine;
   GameMode mode = GameMode::Local;
   bool vs_ai = false;
   ai::Difficulty difficulty = ai::Difficulty::Medium;
-  int player_color = 0;  // kolor lokalnego/AI-opponent human
+  int player_color = 0;
 
   std::string white_player_id;
   std::string black_player_id;
@@ -42,6 +46,27 @@ struct GameSession {
   int version = 0;
   std::chrono::steady_clock::time_point updated_at =
       std::chrono::steady_clock::now();
+
+  std::weak_ptr<WsConnection> white_conn;
+  std::weak_ptr<WsConnection> black_conn;
+};
+
+struct WsConnection {
+  std::mutex send_mu;
+  httplib::ws::WebSocket* ws = nullptr;
+  std::atomic<bool> open{false};
+  std::string player_id;
+  std::string game_id;
+
+  bool sendText(const std::string& text) {
+    std::lock_guard lock(send_mu);
+    if (!open.load() || ws == nullptr) {
+      return false;
+    }
+    return ws->send(text);
+  }
+
+  bool sendJson(const nlohmann::json& body) { return sendText(body.dump()); }
 };
 
 struct WaitingPlayer {
@@ -59,7 +84,8 @@ struct MatchTicket {
 std::mutex g_mutex;
 std::unordered_map<std::string, GameSession> g_games;
 std::deque<WaitingPlayer> g_queue;
-std::unordered_map<std::string, MatchTicket> g_tickets;  // player_id -> ticket
+std::unordered_map<std::string, MatchTicket> g_tickets;
+std::unordered_map<std::string, std::shared_ptr<WsConnection>> g_player_conn;
 
 std::mt19937& rng() {
   static thread_local std::mt19937 engine{std::random_device{}()};
@@ -169,6 +195,11 @@ std::optional<int> colorForPlayer(const GameSession& session,
   return std::nullopt;
 }
 
+void bumpSession(GameSession& session) {
+  ++session.version;
+  session.updated_at = std::chrono::steady_clock::now();
+}
+
 std::optional<std::string> maybePlayAi(GameSession& session) {
   if (!session.vs_ai || session.engine.isGameOver() ||
       session.engine.currentTurn() == session.player_color) {
@@ -188,9 +219,58 @@ std::optional<std::string> maybePlayAi(GameSession& session) {
   }
 
   session.last_move = move->toNotation();
-  ++session.version;
-  session.updated_at = std::chrono::steady_clock::now();
+  bumpSession(session);
   return session.last_move;
+}
+
+void notifyPlayer(const std::shared_ptr<WsConnection>& conn,
+                  const nlohmann::json& body) {
+  if (conn) {
+    conn->sendJson(body);
+  }
+}
+
+void broadcastOnlineState(GameSession& session, const std::string& game_id,
+                          const std::string& event = "state") {
+  auto white = session.white_conn.lock();
+  auto black = session.black_conn.lock();
+  if (white) {
+    auto payload = gamePayload(game_id, session, 0);
+    payload["type"] = event;
+    notifyPlayer(white, payload);
+  }
+  if (black) {
+    auto payload = gamePayload(game_id, session, 1);
+    payload["type"] = event;
+    notifyPlayer(black, payload);
+  }
+}
+
+bool applyResignationLocked(GameSession& session, const std::string& game_id,
+                            int resigning_color, const std::string& reason) {
+  if (session.mode != GameMode::Online || session.engine.isGameOver()) {
+    return false;
+  }
+  if (!session.engine.resign(resigning_color)) {
+    return false;
+  }
+  bumpSession(session);
+  g_tickets.erase(session.white_player_id);
+  g_tickets.erase(session.black_player_id);
+
+  auto white = session.white_conn.lock();
+  auto black = session.black_conn.lock();
+  for (const auto& conn : {white, black}) {
+    if (!conn) {
+      continue;
+    }
+    const auto color = colorForPlayer(session, conn->player_id);
+    auto payload = gamePayload(game_id, session, color);
+    payload["type"] = "opponent_left";
+    payload["reason"] = reason;
+    notifyPlayer(conn, payload);
+  }
+  return true;
 }
 
 struct CreateOptions {
@@ -324,6 +404,227 @@ nlohmann::json ticketJson(const MatchTicket& ticket) {
                         {"opponentName", ticket.opponent_name}};
 }
 
+std::string notationFromMove(const game::api::MoveRequest& move) {
+  std::string out = move.from + move.to;
+  if (move.promotion) {
+    switch (*move.promotion) {
+      case PieceType::Queen:
+        out.push_back('q');
+        break;
+      case PieceType::Rook:
+        out.push_back('r');
+        break;
+      case PieceType::Bishop:
+        out.push_back('b');
+        break;
+      case PieceType::Knight:
+        out.push_back('n');
+        break;
+      default:
+        break;
+    }
+  }
+  return out;
+}
+
+void handleWsMessage(const std::shared_ptr<WsConnection>& conn,
+                     const std::string& raw) {
+  nlohmann::json body;
+  try {
+    body = nlohmann::json::parse(raw);
+  } catch (const nlohmann::json::exception&) {
+    conn->sendJson(
+        nlohmann::json{{"type", "error"}, {"message", "Niepoprawny JSON."}});
+    return;
+  }
+
+  if (!body.contains("type") || !body["type"].is_string()) {
+    conn->sendJson(
+        nlohmann::json{{"type", "error"}, {"message", "Brak pola type."}});
+    return;
+  }
+
+  const auto type = body["type"].get<std::string>();
+
+  if (type == "hello") {
+    std::string player_id;
+    if (body.contains("playerId") && body["playerId"].is_string()) {
+      player_id = body["playerId"].get<std::string>();
+    }
+    if (player_id.empty()) {
+      player_id = makeId(12);
+    }
+
+    std::lock_guard lock(g_mutex);
+    conn->player_id = player_id;
+    g_player_conn[player_id] = conn;
+    conn->sendJson(
+        nlohmann::json{{"type", "hello_ok"}, {"playerId", player_id}});
+    return;
+  }
+
+  if (type == "join_game") {
+    if (!body.contains("gameId") || !body["gameId"].is_string()) {
+      conn->sendJson(
+          nlohmann::json{{"type", "error"}, {"message", "Wymagane gameId."}});
+      return;
+    }
+    const auto game_id = body["gameId"].get<std::string>();
+
+    std::lock_guard lock(g_mutex);
+    if (conn->player_id.empty()) {
+      conn->sendJson(
+          nlohmann::json{{"type", "error"}, {"message", "Najpierw hello."}});
+      return;
+    }
+    const auto it = g_games.find(game_id);
+    if (it == g_games.end()) {
+      conn->sendJson(nlohmann::json{{"type", "error"},
+                                    {"message", "Nie znaleziono gry."}});
+      return;
+    }
+    auto& session = it->second;
+    const auto color = colorForPlayer(session, conn->player_id);
+    if (!color) {
+      conn->sendJson(nlohmann::json{
+          {"type", "error"}, {"message", "Nie jestes graczem tej partii."}});
+      return;
+    }
+
+    conn->game_id = game_id;
+    if (*color == 0) {
+      session.white_conn = conn;
+    } else {
+      session.black_conn = conn;
+    }
+    bumpSession(session);
+
+    auto payload = gamePayload(game_id, session, color);
+    payload["type"] = "joined";
+    conn->sendJson(payload);
+    return;
+  }
+
+  if (type == "move") {
+    const auto move = game::api::parseMoveRequest(body);
+    if (!move) {
+      conn->sendJson(
+          nlohmann::json{{"type", "error"}, {"message", "Wymagane from/to."}});
+      return;
+    }
+
+    std::lock_guard lock(g_mutex);
+    if (conn->game_id.empty()) {
+      conn->sendJson(nlohmann::json{{"type", "error"},
+                                    {"message", "Nie dolaczono do gry."}});
+      return;
+    }
+    const auto it = g_games.find(conn->game_id);
+    if (it == g_games.end()) {
+      conn->sendJson(nlohmann::json{{"type", "error"},
+                                    {"message", "Nie znaleziono gry."}});
+      return;
+    }
+
+    auto& game = it->second;
+    auto& engine = game.engine;
+    if (engine.isGameOver()) {
+      conn->sendJson(
+          nlohmann::json{{"type", "error"}, {"message", "Gra zakonczona."}});
+      return;
+    }
+    const auto color = colorForPlayer(game, conn->player_id);
+    if (!color || engine.currentTurn() != *color) {
+      conn->sendJson(nlohmann::json{{"type", "error"},
+                                    {"message", "Teraz kolej przeciwnika."}});
+      return;
+    }
+
+    if (!engine.tryMove(move->from, move->to, move->promotion)) {
+      if (!move->promotion) {
+        const auto from = game::parseSquare(move->from);
+        const auto to = game::parseSquare(move->to);
+        if (from && to &&
+            engine.needsPromotionForMove(from->first, from->second, to->first,
+                                         to->second)) {
+          conn->sendJson(nlohmann::json{{"type", "error"},
+                                        {"message", "Wymagana promocja."},
+                                        {"needsPromotion", true}});
+          return;
+        }
+      }
+      conn->sendJson(
+          nlohmann::json{{"type", "error"},
+                         {"message", "Niepoprawny lub niedozwolony ruch."}});
+      return;
+    }
+
+    game.last_move = notationFromMove(*move);
+    bumpSession(game);
+    broadcastOnlineState(game, conn->game_id, "state");
+    return;
+  }
+
+  if (type == "resign") {
+    std::lock_guard lock(g_mutex);
+    if (conn->game_id.empty()) {
+      conn->sendJson(nlohmann::json{{"type", "error"},
+                                    {"message", "Nie dolaczono do gry."}});
+      return;
+    }
+    const auto it = g_games.find(conn->game_id);
+    if (it == g_games.end()) {
+      return;
+    }
+    const auto color = colorForPlayer(it->second, conn->player_id);
+    if (!color) {
+      return;
+    }
+    applyResignationLocked(it->second, conn->game_id, *color, "resign");
+    return;
+  }
+
+  if (type == "ping") {
+    conn->sendJson(nlohmann::json{{"type", "pong"}});
+    return;
+  }
+
+  conn->sendJson(nlohmann::json{{"type", "error"},
+                                {"message", "Nieznany typ wiadomosci."}});
+}
+
+void onWsDisconnect(const std::shared_ptr<WsConnection>& conn) {
+  std::lock_guard lock(g_mutex);
+  conn->open = false;
+  {
+    std::lock_guard send_lock(conn->send_mu);
+    conn->ws = nullptr;
+  }
+
+  if (!conn->player_id.empty()) {
+    const auto it = g_player_conn.find(conn->player_id);
+    if (it != g_player_conn.end() && it->second.get() == conn.get()) {
+      g_player_conn.erase(it);
+    }
+  }
+
+  if (conn->game_id.empty() || conn->player_id.empty()) {
+    return;
+  }
+
+  const auto git = g_games.find(conn->game_id);
+  if (git == g_games.end()) {
+    return;
+  }
+  auto& session = git->second;
+  const auto color = colorForPlayer(session, conn->player_id);
+  if (!color || session.engine.isGameOver()) {
+    return;
+  }
+
+  applyResignationLocked(session, conn->game_id, *color, "disconnect");
+}
+
 int parsePort(int argc, char* argv[]) {
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
@@ -359,7 +660,8 @@ int main(int argc, char* argv[]) {
                setJson(response, nlohmann::json{{"ok", true},
                                                 {"service", "cpp_chess_web"},
                                                 {"games", g_games.size()},
-                                                {"waiting", g_queue.size()}});
+                                                {"waiting", g_queue.size()},
+                                                {"websocket", true}});
              });
 
   server.Get("/api/lobby",
@@ -425,7 +727,6 @@ int main(int argc, char* argv[]) {
       return;
     }
 
-    // już w kolejce?
     for (const auto& waiting : g_queue) {
       if (waiting.player_id == player_id) {
         setJson(response, nlohmann::json{{"status", "waiting"},
@@ -436,7 +737,6 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    // znajdź przeciwnika (nie siebie)
     std::optional<WaitingPlayer> opponent;
     for (auto it = g_queue.begin(); it != g_queue.end(); ++it) {
       if (it->player_id != player_id) {
@@ -543,7 +843,6 @@ int main(int argc, char* argv[]) {
     }
 
     const std::string game_id = createLocalOrAiGame(*options);
-
     std::lock_guard lock(g_mutex);
     auto& session = g_games.at(game_id);
     const auto ai_move = maybePlayAi(session);
@@ -604,6 +903,12 @@ int main(int argc, char* argv[]) {
                 }
 
                 auto& game = it->second;
+                if (game.mode == GameMode::Online) {
+                  setError(response, 400,
+                           "Ruchy online tylko przez WebSocket (/ws).");
+                  return;
+                }
+
                 auto& engine = game.engine;
                 if (engine.isGameOver()) {
                   setError(response, 409, "Gra zakonczona.");
@@ -611,17 +916,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 std::optional<int> viewer_color;
-                if (game.mode == GameMode::Online) {
-                  viewer_color = colorForPlayer(game, player_id);
-                  if (!viewer_color) {
-                    setError(response, 403, "Nie jestes graczem tej partii.");
-                    return;
-                  }
-                  if (engine.currentTurn() != *viewer_color) {
-                    setError(response, 409, "Teraz kolej przeciwnika.");
-                    return;
-                  }
-                } else if (game.vs_ai) {
+                if (game.vs_ai) {
                   viewer_color = game.player_color;
                   if (engine.currentTurn() != game.player_color) {
                     setError(response, 409, "Teraz kolej AI.");
@@ -647,28 +942,8 @@ int main(int argc, char* argv[]) {
                   return;
                 }
 
-                game.last_move = move->from + move->to;
-                if (move->promotion) {
-                  switch (*move->promotion) {
-                    case PieceType::Queen:
-                      game.last_move.push_back('q');
-                      break;
-                    case PieceType::Rook:
-                      game.last_move.push_back('r');
-                      break;
-                    case PieceType::Bishop:
-                      game.last_move.push_back('b');
-                      break;
-                    case PieceType::Knight:
-                      game.last_move.push_back('n');
-                      break;
-                    default:
-                      break;
-                  }
-                }
-                ++game.version;
-                game.updated_at = std::chrono::steady_clock::now();
-
+                game.last_move = notationFromMove(*move);
+                bumpSession(game);
                 const auto ai_move = maybePlayAi(game);
                 nlohmann::json payload =
                     gamePayload(game_id, game, viewer_color, ai_move);
@@ -689,8 +964,6 @@ int main(int argc, char* argv[]) {
                 }
 
                 const std::string game_id = request.matches[1];
-                const std::string player_id = playerIdFrom(request, body);
-
                 std::lock_guard lock(g_mutex);
                 const auto it = g_games.find(game_id);
                 if (it == g_games.end()) {
@@ -706,8 +979,7 @@ int main(int argc, char* argv[]) {
 
                 game.engine.startGame();
                 game.last_move.clear();
-                ++game.version;
-                game.updated_at = std::chrono::steady_clock::now();
+                bumpSession(game);
                 const auto ai_move = maybePlayAi(game);
                 nlohmann::json payload =
                     gamePayload(game_id, game,
@@ -718,8 +990,22 @@ int main(int argc, char* argv[]) {
                 setJson(response, payload);
               });
 
+  server.WebSocket("/ws",
+                   [](const httplib::Request&, httplib::ws::WebSocket& ws) {
+                     auto conn = std::make_shared<WsConnection>();
+                     conn->ws = &ws;
+                     conn->open = true;
+
+                     std::string msg;
+                     while (ws.read(msg)) {
+                       handleWsMessage(conn, msg);
+                     }
+
+                     onWsDisconnect(conn);
+                   });
+
   std::cout << "cpp_chess_web nasluchuje na " << kDefaultHost << ':' << port
-            << '\n';
+            << " (HTTP + WebSocket /ws)\n";
   if (!server.listen(kDefaultHost, port)) {
     std::cerr << "Nie udalo sie uruchomic serwera HTTP.\n";
     return 1;

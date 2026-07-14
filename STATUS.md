@@ -4,57 +4,40 @@
 
 ## W skrócie
 
-**Silnik szachowy C++20** z CLI, web GUI (**Vue 3** + nginx + REST), AI oraz **multiplayer online** (kolejka + losowy przeciwnik).
+**Silnik szachowy C++20** z CLI, web GUI (**Vue 3** + nginx), AI oraz **multiplayer online** (kolejka + WebSocket).
 
-## Etap: MVP + web + AI + multiplayer
+## Etap: MVP + web + AI + multiplayer WS
 
 ```
-[████████████████████] ~92%
+[████████████████████] ~93%
 ```
 
 | Zrobione | Do zrobienia |
 |----------|--------------|
 | CMake + Conan + GTest + fmt | GUI desktop (Qt/SDL) |
 | `Board8x8` i `Board12x12` | Notacja SAN / PGN |
-| Pełna logika gry | Zegar szachowy |
+| Pełna logika gry + resign | Zegar szachowy |
 | CLI (`--board`, `--ai`, `--difficulty`) | Persystencja / auth |
-| Web API + Vue GUI + Docker/nginx | WebSocket zamiast pollingu |
-| AI: łatwy / średni / trudny | Szybszy AI |
-| Online: kolejka, losowy 1v1, wiele sesji | |
+| Web API + Vue + Docker/nginx | Szybszy AI |
+| Online: kolejka, losowy 1v1 | |
+| Online: WebSocket `/ws`, disconnect = poddanie | |
 | ~45 testów GTest | |
 
 ## Uruchomienie
 
-### CLI
-```bash
-./bin/conan-install
-./bin/cmake
-./build/cpp_chess_cli
-./build/cpp_chess_cli --ai --difficulty 2
-./build/cpp_chess_cli --ai --difficulty hard --ai-color white
-```
-
-### Web (Docker + nginx)
 ```bash
 ./bin/docker-up
-# http://localhost:8080 — checkbox „Graj przeciw AI” + poziom
+# http://localhost:8080
 ```
 
 ## API (skrót)
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| GET | `/api/lobby` | kolejka + liczba partii |
-| POST | `/api/matchmaking/join` | wejdź do kolejki / sparuj (`name`, `X-Player-Id`) |
-| GET | `/api/matchmaking/status` | `waiting` / `matched` |
-| POST | `/api/matchmaking/leave` | opuść kolejkę |
-| POST | `/api/games` | `{ vsAi, difficulty, playerColor? }` |
-| GET | `/api/games/:id` | stan + `meta` (wymaga `X-Player-Id` w online) |
-| POST | `/api/games/:id/move` | ruch gracza; online: tylko Twoja tura |
-| POST | `/api/games/:id/reset` | reset (tylko local/AI) |
+| GET | `/api/lobby` | kolejka |
+| POST | `/api/matchmaking/join` | matchmaking |
+| WS | `/ws` | online: `hello`, `join_game`, `move`, `resign` |
+| POST | `/api/games` | AI / lokalna |
+| POST | `/api/games/:id/move` | tylko AI/local (online → WS) |
 
-## Następny krok
-
-1. Notacja SAN / PGN  
-2. Tablice bitboard / PST dla silniejszego AI  
-3. `Board12x12` w web API  
+Rozłączenie WebSocket w trakcie partii online = **poddanie** (przeciwnik dostaje `opponent_left`).

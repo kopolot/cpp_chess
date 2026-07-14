@@ -26,7 +26,9 @@ class ChessEngine {
   bool tryMove(const std::string& from, const std::string& to,
                std::optional<PieceType> promotion = std::nullopt);
   bool tryMoveNotation(const std::string& notation);
-  bool needsPromotionForMove(int from_file, int from_rank, int to_file, int to_rank) const;
+  bool needsPromotionForMove(int from_file, int from_rank, int to_file,
+                             int to_rank) const;
+  bool resign(int resigning_color);
 
   int currentTurn() const { return current_turn_; }
   bool isGameOver() const { return game_over_; }
@@ -39,8 +41,12 @@ class ChessEngine {
   BoardType& getBoard() { return board_; }
   const BoardType& getBoard() const { return board_; }
   std::string formatBoard() const { return game::formatBoard(board_); }
-  std::string formatBoardStyled() const { return game::formatBoardStyled(board_); }
-  std::string currentPlayerName() const { return game::colorName(current_turn_); }
+  std::string formatBoardStyled() const {
+    return game::formatBoardStyled(board_);
+  }
+  std::string currentPlayerName() const {
+    return game::colorName(current_turn_);
+  }
   std::optional<std::string> enPassantHint() const {
     return game::enPassantHint(board_, context_, current_turn_);
   }
@@ -80,12 +86,29 @@ void ChessEngine<BoardType>::updateGameState() {
   game_result_ = game::evaluatePosition(board_, context_, current_turn_);
   game_over_ = game_result_ == game::GameResult::Checkmate ||
                game_result_ == game::GameResult::Stalemate ||
-               game_result_ == game::GameResult::Draw;
+               game_result_ == game::GameResult::Draw ||
+               game_result_ == game::GameResult::Resignation;
 }
 
 template <typename BoardType>
   requires board::PlayableBoard<BoardType>
-bool ChessEngine<BoardType>::needsPromotionForMove(int from_file, int from_rank, int to_file,
+bool ChessEngine<BoardType>::resign(int resigning_color) {
+  if (game_over_) {
+    return false;
+  }
+  if (resigning_color != 0 && resigning_color != 1) {
+    return false;
+  }
+  current_turn_ = resigning_color;
+  game_result_ = game::GameResult::Resignation;
+  game_over_ = true;
+  return true;
+}
+
+template <typename BoardType>
+  requires board::PlayableBoard<BoardType>
+bool ChessEngine<BoardType>::needsPromotionForMove(int from_file, int from_rank,
+                                                   int to_file,
                                                    int to_rank) const {
   const auto piece = board_.get(from_file, from_rank);
   if (!piece) {
@@ -96,7 +119,8 @@ bool ChessEngine<BoardType>::needsPromotionForMove(int from_file, int from_rank,
 
 template <typename BoardType>
   requires board::PlayableBoard<BoardType>
-bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file, int to_rank,
+bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file,
+                                     int to_rank,
                                      std::optional<PieceType> promotion) {
   if (game_over_) {
     return false;
@@ -107,7 +131,8 @@ bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file, 
     return false;
   }
 
-  if (game::needsPromotion(from_rank, to_rank, piece->type, piece->color) && !promotion) {
+  if (game::needsPromotion(from_rank, to_rank, piece->type, piece->color) &&
+      !promotion) {
     return false;
   }
 
@@ -119,12 +144,13 @@ bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file, 
     dest_rank = resolved->second;
   }
 
-  if (!game::isLegalMove(board_, context_, from_file, from_rank, dest_file, dest_rank, *piece,
-                         promotion)) {
+  if (!game::isLegalMove(board_, context_, from_file, from_rank, dest_file,
+                         dest_rank, *piece, promotion)) {
     return false;
   }
 
-  game::applyMove(board_, from_file, from_rank, dest_file, dest_rank, *piece, context_, promotion);
+  game::applyMove(board_, from_file, from_rank, dest_file, dest_rank, *piece,
+                  context_, promotion);
   current_turn_ = 1 - current_turn_;
   recordPosition();
   updateGameState();
@@ -133,15 +159,16 @@ bool ChessEngine<BoardType>::tryMove(int from_file, int from_rank, int to_file, 
 
 template <typename BoardType>
   requires board::PlayableBoard<BoardType>
-bool ChessEngine<BoardType>::tryMove(const std::string& from, const std::string& to,
+bool ChessEngine<BoardType>::tryMove(const std::string& from,
+                                     const std::string& to,
                                      std::optional<PieceType> promotion) {
   const auto from_square = game::parseSquare(from);
   const auto to_square = game::parseSquare(to);
   if (!from_square || !to_square) {
     return false;
   }
-  return tryMove(from_square->first, from_square->second, to_square->first, to_square->second,
-                 promotion);
+  return tryMove(from_square->first, from_square->second, to_square->first,
+                 to_square->second, promotion);
 }
 
 template <typename BoardType>
@@ -151,8 +178,8 @@ bool ChessEngine<BoardType>::tryMoveNotation(const std::string& notation) {
   if (!parsed) {
     return false;
   }
-  return tryMove(parsed->from.first, parsed->from.second, parsed->to.first, parsed->to.second,
-                 parsed->promotion);
+  return tryMove(parsed->from.first, parsed->from.second, parsed->to.first,
+                 parsed->to.second, parsed->promotion);
 }
 
 #endif

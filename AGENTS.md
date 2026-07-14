@@ -23,6 +23,7 @@ Modułowy **silnik szachowy w C++20** z wymiennymi front-endami:
 | Docker Compose (nginx + backend + build Vue) | Gotowe |
 | AI opponent (minimax, poziomy 1–3) | Gotowe |
 | Online multiplayer (kolejka + losowy 1v1) | Gotowe |
+| Online WebSocket + resign przy disconnect | Gotowe |
 | `ChessEngine<BoardType>` — pełna logika gry | Gotowe |
 | `Board8x8` + `Board12x12` (concept `PlayableBoard`) | Gotowe |
 | Szach, mat, pat, roszada, en passant, promocja, remisy | Gotowe |
@@ -112,7 +113,7 @@ cd web/frontend && npm install && npm run dev   # http://localhost:5173
 
 AI: `include/ai/` — material eval + alpha-beta. CLI: `--ai --difficulty 1|2|3`.
 
-Online: wielu graczy, wiele sesji w pamięci, losowe kolory przy sparowaniu; Vue polluje stan (~1.2 s).
+Online: wielu graczy, wiele sesji w pamięci, losowe kolory; sync gry przez **WebSocket `/ws`** (disconnect = poddanie).
 
 ## Konwencje kodu
 

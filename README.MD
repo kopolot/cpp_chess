@@ -60,7 +60,7 @@ cd web/frontend && npm install && npm run dev
 | `POST` | `/api/games/:id/move` | `{ "from": "e2", "to": "e4", "promotion": "q" }` |
 | `POST` | `/api/games/:id/reset` | reset (AI/local) |
 
-Poziomy AI: `1` łatwy, `2` średni, `3` trudny. Online: header `X-Player-Id`, kolory losowane przy sparowaniu.
+Poziomy AI: `1` łatwy, `2` średni, `3` trudny. Online: header `X-Player-Id`, kolory losowane; ruchy przez WebSocket `/ws` (rozłączenie = poddanie).
 
 ## Struktura
 
