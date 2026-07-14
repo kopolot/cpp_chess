@@ -1,9 +1,12 @@
 #include <fmt/base.h>
 
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 
+#include "board/board_12x12.hpp"
 #include "board/board_8x8.hpp"
 #include "chess_engine.hpp"
 #include "game/en_passant.hpp"
@@ -13,7 +16,79 @@
 
 namespace {
 
-std::string styledStatusMessage(const ChessEngine<board::Board8x8>& engine) {
+enum class BoardChoice { k8x8, k12x12 };
+
+std::optional<BoardChoice> parseBoardValue(std::string_view value) {
+  if (value == "8x8" || value == "8") {
+    return BoardChoice::k8x8;
+  }
+  if (value == "12x12" || value == "12") {
+    return BoardChoice::k12x12;
+  }
+  return std::nullopt;
+}
+
+const char* boardLabel(BoardChoice choice) {
+  return choice == BoardChoice::k12x12 ? "12x12 (obramowanie)" : "8x8";
+}
+
+void printUsage(const char* program) {
+  fmt::print(
+      "Uzycie: {} [opcje]\n"
+      "\n"
+      "Opcje:\n"
+      "  --board <8x8|12x12>   implementacja planszy (domyslnie 8x8)\n"
+      "  -b <8x8|12x12>        skrot --board\n"
+      "  --help, -h            ta pomoc\n"
+      "\n",
+      program);
+}
+
+enum class ArgParseResult { kOk, kHelp, kError };
+
+ArgParseResult parseArgs(int argc, char* argv[], BoardChoice& choice) {
+  choice = BoardChoice::k8x8;
+
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if (arg == "--help" || arg == "-h") {
+      printUsage(argv[0]);
+      return ArgParseResult::kHelp;
+    }
+    if (arg == "--board" || arg == "-b") {
+      if (i + 1 >= argc) {
+        fmt::print("Brak wartosci po {}.\n", arg);
+        printUsage(argv[0]);
+        return ArgParseResult::kError;
+      }
+      const auto parsed = parseBoardValue(argv[++i]);
+      if (!parsed) {
+        fmt::print("Nieznana plansza: {}. Dostepne: 8x8, 12x12.\n", argv[i]);
+        return ArgParseResult::kError;
+      }
+      choice = *parsed;
+      continue;
+    }
+    if (arg.rfind("--board=", 0) == 0) {
+      const auto parsed = parseBoardValue(arg.substr(8));
+      if (!parsed) {
+        fmt::print("Nieznana plansza: {}. Dostepne: 8x8, 12x12.\n", arg.substr(8));
+        return ArgParseResult::kError;
+      }
+      choice = *parsed;
+      continue;
+    }
+
+    fmt::print("Nieznany argument: {}.\n", arg);
+    printUsage(argv[0]);
+    return ArgParseResult::kError;
+  }
+
+  return ArgParseResult::kOk;
+}
+
+template <typename BoardType>
+std::string styledStatusMessage(const ChessEngine<BoardType>& engine) {
   const auto result = engine.gameResult();
   const int side = engine.currentTurn();
   const std::string side_name = game::colorName(side);
@@ -58,7 +133,8 @@ void printHelp() {
       "  Dostepne tylko przez jeden ruch — CLI pokaze podpowiedz.\n");
 }
 
-void printBoard(const ChessEngine<board::Board8x8>& engine) {
+template <typename BoardType>
+void printBoard(const ChessEngine<BoardType>& engine) {
   fmt::print("\n{}\n", engine.formatBoardStyled());
   if (engine.isGameOver()) {
     fmt::print("{}\n", styledStatusMessage(engine));
@@ -84,7 +160,8 @@ std::optional<PieceType> promptPromotion() {
   return game::parsePromotionChar(input[0]);
 }
 
-bool tryMoveWithPromotion(ChessEngine<board::Board8x8>& engine, const game::ParsedMove& move) {
+template <typename BoardType>
+bool tryMoveWithPromotion(ChessEngine<BoardType>& engine, const game::ParsedMove& move) {
   if (engine.tryMove(move.from.first, move.from.second, move.to.first, move.to.second,
                      move.promotion)) {
     return true;
@@ -109,7 +186,8 @@ bool tryMoveWithPromotion(ChessEngine<board::Board8x8>& engine, const game::Pars
                         promotion);
 }
 
-bool handleMove(ChessEngine<board::Board8x8>& engine, const std::string& args) {
+template <typename BoardType>
+bool handleMove(ChessEngine<BoardType>& engine, const std::string& args) {
   if (engine.isGameOver()) {
     fmt::print("Gra zakonczona. Wpisz 'new' aby zaczac od nowa.\n");
     return true;
@@ -137,13 +215,12 @@ bool handleMove(ChessEngine<board::Board8x8>& engine, const std::string& args) {
   return true;
 }
 
-}  // namespace
-
-int main() {
-  ChessEngine<board::Board8x8> engine;
+template <typename BoardType>
+void runCli(BoardChoice board_choice) {
+  ChessEngine<BoardType> engine;
   engine.startGame();
 
-  fmt::print("♟ cpp_chess CLI\n");
+  fmt::print("♟ cpp_chess CLI (plansza: {})\n", boardLabel(board_choice));
   printHelp();
   printBoard(engine);
 
@@ -201,6 +278,26 @@ int main() {
     }
 
     fmt::print("Nieznana komenda: {}. Wpisz help.\n", command);
+  }
+}
+
+}  // namespace
+
+int main(int argc, char* argv[]) {
+  BoardChoice board_choice = BoardChoice::k8x8;
+  switch (parseArgs(argc, argv, board_choice)) {
+    case ArgParseResult::kHelp:
+      return 0;
+    case ArgParseResult::kError:
+      return 1;
+    case ArgParseResult::kOk:
+      break;
+  }
+
+  if (board_choice == BoardChoice::k12x12) {
+    runCli<board::Board12x12>(board_choice);
+  } else {
+    runCli<board::Board8x8>(board_choice);
   }
 
   return 0;
