@@ -1,58 +1,58 @@
 # cpp_chess
 
-Modułowy silnik szachowy w **C++20** z CLI i **Vue** web GUI.
+A modular **C++20** chess engine with a CLI and a **Vue** web GUI.
 
-## O projekcie
+## About this project
 
-**Przykładowy projekt portfolio** na GitHub — demonstracja modułowej architektury w C++20, od silnika gry po kilka wymiennych front-endów. Kod jest publiczny i służy jako referencja: jak oddzielić logikę od UI, zbudować toolchain od zera i doprowadzić MVP do gry online.
+**A portfolio example on GitHub** — a demonstration of modular C++20 architecture, from the game engine to multiple interchangeable front-ends. The code is public and serves as a reference for separating game logic from UI, building a toolchain from scratch, and taking an MVP all the way to online play.
 
-### Co tu jest
+### What's included
 
-- **Silnik** — szablon `ChessEngine<BoardType>`, dwie reprezentacje planszy (`Board8x8`, `Board12x12`), pełna logika FIDE (roszada, en passant, promocja, remisy)
-- **CLI** — konsolowy REPL z wyborem planszy i trybem vs AI
-- **Web** — REST API w C++ (`cpp-httplib`) + frontend **Vue 3** (Vite, Composition API)
-- **AI** — minimax z alpha-beta i trzema poziomami trudności
-- **Multiplayer online** — kolejka matchmakingu, losowy 1v1, synchronizacja przez WebSocket
+- **Engine** — `ChessEngine<BoardType>` template, two board representations (`Board8x8`, `Board12x12`), full FIDE rules (castling, en passant, promotion, draws)
+- **CLI** — console REPL with board selection and vs-AI mode
+- **Web** — C++ REST API (`cpp-httplib`) + **Vue 3** frontend (Vite, Composition API)
+- **AI** — minimax with alpha-beta pruning and three difficulty levels
+- **Online multiplayer** — matchmaking queue, random 1v1 pairing, WebSocket sync
 
-### Stack technologiczny
+### Tech stack
 
-| Warstwa | Technologie |
-|---------|-------------|
-| Język / standard | **C++20** (concepts, szablony) |
+| Layer | Technologies |
+|-------|--------------|
+| Language / standard | **C++20** (concepts, templates) |
 | Build | **CMake**, **Conan 2** |
-| Testy | **Google Test** |
-| Backend C++ | **fmt**, **cpp-httplib**, **nlohmann/json** |
+| Testing | **Google Test** |
+| C++ backend | **fmt**, **cpp-httplib**, **nlohmann/json** |
 | Frontend | **Vue 3**, **Vite** |
-| Infrastruktura | **Docker**, **nginx** (reverse proxy) |
-| Jakość kodu | clang-format, clang-tidy, Doxygen |
+| Infrastructure | **Docker**, **nginx** (reverse proxy) |
+| Code quality | clang-format, clang-tidy, Doxygen |
 
-Inspiracja struktury projektu: [ModernCppStarter](https://github.com/TheLartians/ModernCppStarter).
+Project structure inspired by [ModernCppStarter](https://github.com/TheLartians/ModernCppStarter).
 
 ### Cursor
 
-Projekt powstał i rozwijał się w **[Cursor](https://cursor.com)** — IDE z agentami AI. Cursor pomagał m.in. przy:
+This project was built and developed in **[Cursor](https://cursor.com)** — an AI-powered IDE. Cursor helped with:
 
-- szkielecie CMake + Conan i konfiguracji toolchainu,
-- implementacji logiki gry i testów GTest,
-- REST API, WebSocket i integracji z frontendem Vue,
-- Docker Compose, nginx i dokumentacji (`AGENTS.md`, reguły w `.cursor/rules/`).
+- the CMake + Conan scaffold and toolchain setup,
+- game logic implementation and GTest tests,
+- REST API, WebSocket, and Vue frontend integration,
+- Docker Compose, nginx, and documentation (`AGENTS.md`, rules in `.cursor/rules/`).
 
-To nie jest „wygenerowany jednym promptem” prototyp — to realny, budowany iteracyjnie projekt, w którym AI wspierało pisanie kodu, refaktoryzację i utrzymanie spójności architektury, a decyzje projektowe i review pozostawały po stronie autora.
+This is not a "one-prompt prototype" — it is a real, iteratively built project where AI assisted with writing code, refactoring, and keeping the architecture consistent, while design decisions and review stayed with the author.
 
 ## Status
 
-MVP: pełna logika gry, AI, Vue frontend oraz **online multiplayer** (losowy przeciwnik). Szczegóły: [STATUS.md](STATUS.md).
+MVP complete: full game logic, AI, Vue frontend, and **online multiplayer** (random opponent). Details: [STATUS.md](STATUS.md).
 
-## Wymagania
+## Requirements
 
 - CMake ≥ 3.10
 - Conan 2
-- Kompilator z C++20 (GCC/Clang)
+- C++20 compiler (GCC/Clang)
 - Node.js ≥ 20 + npm (frontend)
-- clang-format, clang-tidy (opcjonalnie)
-- Docker + Compose (opcjonalnie, do web stacku)
+- clang-format, clang-tidy (optional)
+- Docker + Compose (optional, for the web stack)
 
-## Szybki start — CLI
+## Quick start — CLI
 
 ```bash
 ./bin/conan-install
@@ -63,68 +63,68 @@ MVP: pełna logika gry, AI, Vue frontend oraz **online multiplayer** (losowy prz
 ./build/cpp_chess_cli --help
 ```
 
-Komendy w REPL: `board`, `move e2e4`, `move e2 e4`, `new`, `help`, `exit`.
+REPL commands: `board`, `move e2e4`, `move e2 e4`, `new`, `help`, `exit`.
 
-## Szybki start — Web GUI
+## Quick start — Web GUI
 
-### Docker (zalecane)
+### Docker (recommended)
 
 ```bash
 ./bin/docker-up
 # → http://localhost:8080
-# nginx serwuje zbudowany Vue; /api → backend C++
+# nginx serves the built Vue app; /api → C++ backend
 ```
 
-### Lokalnie (dev)
+### Local (dev)
 
 ```bash
 ./build/cpp_chess_web -p 8081
 cd web/frontend && npm install && npm run dev
-# → http://localhost:5173  (Vite proxy /api → :8081)
+# → http://localhost:5173  (Vite proxies /api → :8081)
 ```
 
 ### REST API
 
-| Metoda | Ścieżka | Opis |
-|--------|---------|------|
+| Method | Path | Description |
+|--------|------|-------------|
 | `GET` | `/api/health` | healthcheck |
-| `GET` | `/api/lobby` | kolejka / aktywne partie |
-| `POST` | `/api/matchmaking/join` | szukaj losowego przeciwnika |
-| `GET` | `/api/matchmaking/status` | status matchmakingu |
-| `POST` | `/api/matchmaking/leave` | anuluj szukanie |
-| `POST` | `/api/games` | nowa gra AI/lokalna (`vsAi`, `difficulty`, `playerColor`) |
-| `GET` | `/api/games/:id` | stan gry |
+| `GET` | `/api/lobby` | queue / active games |
+| `POST` | `/api/matchmaking/join` | find a random opponent |
+| `GET` | `/api/matchmaking/status` | matchmaking status |
+| `POST` | `/api/matchmaking/leave` | cancel search |
+| `POST` | `/api/games` | new AI/local game (`vsAi`, `difficulty`, `playerColor`) |
+| `GET` | `/api/games/:id` | game state |
 | `POST` | `/api/games/:id/move` | `{ "from": "e2", "to": "e4", "promotion": "q" }` |
 | `POST` | `/api/games/:id/reset` | reset (AI/local) |
 
-Poziomy AI: `1` łatwy, `2` średni, `3` trudny. Online: header `X-Player-Id`, kolory losowane; ruchy przez WebSocket `/ws` (rozłączenie = poddanie).
+AI levels: `1` easy, `2` medium, `3` hard. Online: `X-Player-Id` header, colors assigned randomly; moves via WebSocket `/ws` (disconnect = resign).
 
-## Struktura
+## Structure
 
-| Katalog | Opis |
-|---------|------|
-| `cli/` | Konsolowy REPL |
-| `web/server/` | Serwer HTTP (REST, C++) |
+| Directory | Description |
+|-----------|-------------|
+| `cli/` | Console REPL |
+| `web/server/` | HTTP server (REST, C++) |
 | `web/frontend/` | Vue 3 + Vite |
-| `docker/` | Dockerfile backendu/frontendu, nginx, compose |
-| `include/` | Silnik, `game/`, `board/`, `ai/` |
+| `docker/` | Backend/frontend Dockerfiles, nginx, compose |
+| `include/` | Engine, `game/`, `board/`, `ai/` |
 | `src/board/` | `Board8x8`, `Board12x12` |
 | `test/` | GTest |
-| `bin/` | Skrypty build / test / docker |
+| `bin/` | Build / test / docker scripts |
 
-## Testy
+## Tests
 
 ```bash
 cd build && ctest --output-on-failure
 cd web/frontend && npm run build
 ```
 
-## Dla agentów AI
+## For AI agents
 
-Zobacz [AGENTS.md](AGENTS.md) — kontekst, konwencje, API i następne kroki.
+See [AGENTS.md](AGENTS.md) — context, conventions, API, and next steps.
 
-## Założenia
+## Design principles
 
-- Silnik i UI są wymienne (`ChessEngine<BoardType>`)
-- CLI wybiera planszę (`8x8` / `12x12`); web API na razie używa `Board8x8`
-- Frontend: Vue 3 (Composition API) + Vite; produkcja budowana do static files za nginxiem
+- Engine and UI are interchangeable (`ChessEngine<BoardType>`)
+- CLI selects the board (`8x8` / `12x12`); the web API currently uses `Board8x8`
+- Frontend: Vue 3 (Composition API) + Vite; production build served as static files behind nginx
