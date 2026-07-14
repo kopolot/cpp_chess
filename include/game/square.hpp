@@ -52,6 +52,45 @@ inline std::optional<PieceType> parsePromotionChar(char symbol) {
 }
 
 inline std::optional<ParsedMove> parseMoveExtended(const std::string& notation) {
+  const auto space = notation.find(' ');
+  if (space != std::string::npos) {
+    const auto from = parseSquare(notation.substr(0, space));
+    std::string rest = notation.substr(space + 1);
+    while (!rest.empty() && rest.front() == ' ') {
+      rest.erase(0, 1);
+    }
+
+    const auto second_space = rest.find(' ');
+    std::string to_notation = rest;
+    std::optional<PieceType> promotion;
+
+    if (second_space != std::string::npos) {
+      to_notation = rest.substr(0, second_space);
+      std::string promo_str = rest.substr(second_space + 1);
+      while (!promo_str.empty() && promo_str.front() == ' ') {
+        promo_str.erase(0, 1);
+      }
+      if (!promo_str.empty()) {
+        promotion = parsePromotionChar(promo_str[0]);
+        if (!promotion) {
+          return std::nullopt;
+        }
+      }
+    } else if (rest.size() == 3) {
+      to_notation = rest.substr(0, 2);
+      promotion = parsePromotionChar(rest[2]);
+      if (!promotion) {
+        return std::nullopt;
+      }
+    }
+
+    const auto to = parseSquare(to_notation);
+    if (!from || !to) {
+      return std::nullopt;
+    }
+    return ParsedMove{*from, *to, promotion};
+  }
+
   if (notation.size() == 4 || notation.size() == 5) {
     const auto from = parseSquare(notation.substr(0, 2));
     const auto to = parseSquare(notation.substr(2, 2));
@@ -68,38 +107,7 @@ inline std::optional<ParsedMove> parseMoveExtended(const std::string& notation) 
     return move;
   }
 
-  const auto space = notation.find(' ');
-  if (space == std::string::npos) {
-    return std::nullopt;
-  }
-
-  const auto from = parseSquare(notation.substr(0, space));
-  std::string rest = notation.substr(space + 1);
-  const auto second_space = rest.find(' ');
-  std::string to_notation = rest;
-  std::optional<PieceType> promotion;
-
-  if (second_space != std::string::npos) {
-    to_notation = rest.substr(0, second_space);
-    if (second_space + 1 < rest.size()) {
-      promotion = parsePromotionChar(rest[second_space + 1]);
-      if (!promotion) {
-        return std::nullopt;
-      }
-    }
-  } else if (rest.size() == 3) {
-    to_notation = rest.substr(0, 2);
-    promotion = parsePromotionChar(rest[2]);
-    if (!promotion) {
-      return std::nullopt;
-    }
-  }
-
-  const auto to = parseSquare(to_notation);
-  if (!from || !to) {
-    return std::nullopt;
-  }
-  return ParsedMove{*from, *to, promotion};
+  return std::nullopt;
 }
 
 inline std::optional<std::pair<std::pair<int, int>, std::pair<int, int>>> parseMove(

@@ -15,6 +15,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Domyślny typ budowania" FORCE)
 endif()
 
+# Conan (fmt, gtest) buduje zależności jako Release — mapuj Debug na Release.
+set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG Release)
+set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+set(CMAKE_MAP_IMPORTED_CONFIG_MINSIZEREL Release)
 
 # Ustawienia kompilatora dla różnych konfiguracji
 function(set_my_compile_options target)

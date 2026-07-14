@@ -1,0 +1,31 @@
+---
+description: Kontekst projektu cpp_chess — architektura, etap, build
+alwaysApply: true
+---
+
+# cpp_chess — reguły projektu
+
+Modułowy silnik szachowy C++20. Silnik i CLI są oddzielone.
+
+## Stan projektu
+
+- Toolchain gotowy (CMake, Conan, GTest, fmt, Doxygen)
+- Logika gry **niezaimplementowana** — tylko nagłówki w `include/`
+- `src/` i `engine/` są puste
+- Szczegóły: `AGENTS.md`, `STATUS.md`, `note.md`
+
+## Build
+
+```bash
+./bin/conan-install   # pełny setup
+./bin/cmake           # rebuild Debug
+cd build && ctest     # testy
+```
+
+## Zasady zmian
+
+- Logika silnika → `include/` + `src/` lub `engine/`, nie w `cli/`
+- `ChessEngine<BoardType>` — plansza jako parametr szablonu
+- C++20, styl Google (`.clang-format`)
+- Zależności tylko przez Conan (`conanfile.txt`)
+- Minimalny diff — nie refaktoruj bez potrzeby
