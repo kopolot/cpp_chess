@@ -2,6 +2,43 @@
 
 Modułowy silnik szachowy w **C++20** z CLI i **Vue** web GUI.
 
+## O projekcie
+
+**Przykładowy projekt portfolio** na GitHub — demonstracja modułowej architektury w C++20, od silnika gry po kilka wymiennych front-endów. Kod jest publiczny i służy jako referencja: jak oddzielić logikę od UI, zbudować toolchain od zera i doprowadzić MVP do gry online.
+
+### Co tu jest
+
+- **Silnik** — szablon `ChessEngine<BoardType>`, dwie reprezentacje planszy (`Board8x8`, `Board12x12`), pełna logika FIDE (roszada, en passant, promocja, remisy)
+- **CLI** — konsolowy REPL z wyborem planszy i trybem vs AI
+- **Web** — REST API w C++ (`cpp-httplib`) + frontend **Vue 3** (Vite, Composition API)
+- **AI** — minimax z alpha-beta i trzema poziomami trudności
+- **Multiplayer online** — kolejka matchmakingu, losowy 1v1, synchronizacja przez WebSocket
+
+### Stack technologiczny
+
+| Warstwa | Technologie |
+|---------|-------------|
+| Język / standard | **C++20** (concepts, szablony) |
+| Build | **CMake**, **Conan 2** |
+| Testy | **Google Test** |
+| Backend C++ | **fmt**, **cpp-httplib**, **nlohmann/json** |
+| Frontend | **Vue 3**, **Vite** |
+| Infrastruktura | **Docker**, **nginx** (reverse proxy) |
+| Jakość kodu | clang-format, clang-tidy, Doxygen |
+
+Inspiracja struktury projektu: [ModernCppStarter](https://github.com/TheLartians/ModernCppStarter).
+
+### Cursor
+
+Projekt powstał i rozwijał się w **[Cursor](https://cursor.com)** — IDE z agentami AI. Cursor pomagał m.in. przy:
+
+- szkielecie CMake + Conan i konfiguracji toolchainu,
+- implementacji logiki gry i testów GTest,
+- REST API, WebSocket i integracji z frontendem Vue,
+- Docker Compose, nginx i dokumentacji (`AGENTS.md`, reguły w `.cursor/rules/`).
+
+To nie jest „wygenerowany jednym promptem” prototyp — to realny, budowany iteracyjnie projekt, w którym AI wspierało pisanie kodu, refaktoryzację i utrzymanie spójności architektury, a decyzje projektowe i review pozostawały po stronie autora.
+
 ## Status
 
 MVP: pełna logika gry, AI, Vue frontend oraz **online multiplayer** (losowy przeciwnik). Szczegóły: [STATUS.md](STATUS.md).
