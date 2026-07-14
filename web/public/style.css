@@ -132,12 +132,26 @@ body {
   color: var(--muted);
 }
 
-.setting select {
+.setting select,
+.setting input {
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #1f1f27;
   color: var(--text);
   padding: 0.35rem 0.5rem;
+}
+
+.setting input {
+  min-width: 8rem;
+}
+
+button.secondary {
+  background: #4a4a58;
+  color: var(--text);
+}
+
+.controls {
+  flex-wrap: wrap;
 }
 
 .square .piece.white {

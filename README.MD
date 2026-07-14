@@ -4,7 +4,7 @@ Modułowy silnik szachowy w **C++20** z CLI i prostym **web GUI**.
 
 ## Status
 
-MVP: pełna logika gry, dwie implementacje planszy, konsola oraz REST API + vanilla frontend za nginxiem. Szczegóły: [STATUS.md](STATUS.md).
+MVP: pełna logika gry, AI, web GUI oraz **online multiplayer** (losowy przeciwnik). Szczegóły: [STATUS.md](STATUS.md).
 
 ## Wymagania
 
@@ -46,12 +46,16 @@ Lokalnie bez Dockera:
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | `GET` | `/api/health` | healthcheck |
-| `POST` | `/api/games` | nowa gra (`vsAi`, `difficulty`, `playerColor`) |
+| `GET` | `/api/lobby` | kolejka / aktywne partie |
+| `POST` | `/api/matchmaking/join` | szukaj losowego przeciwnika |
+| `GET` | `/api/matchmaking/status` | status matchmakingu |
+| `POST` | `/api/matchmaking/leave` | anuluj szukanie |
+| `POST` | `/api/games` | nowa gra AI/lokalna (`vsAi`, `difficulty`, `playerColor`) |
 | `GET` | `/api/games/:id` | stan gry |
 | `POST` | `/api/games/:id/move` | `{ "from": "e2", "to": "e4", "promotion": "q" }` |
-| `POST` | `/api/games/:id/reset` | reset pozycji |
+| `POST` | `/api/games/:id/reset` | reset (AI/local) |
 
-Poziomy AI: `1` łatwy, `2` średni, `3` trudny (głębokość minimax 1/2/3).
+Poziomy AI: `1` łatwy, `2` średni, `3` trudny. Online: header `X-Player-Id`, kolory losowane przy sparowaniu.
 
 ## Struktura
 

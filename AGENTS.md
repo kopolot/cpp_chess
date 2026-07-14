@@ -21,6 +21,8 @@ Modułowy **silnik szachowy w C++20** z wymiennymi front-endami:
 | Web API (`cpp-httplib`) + REST JSON | Gotowe |
 | Web GUI (vanilla HTML/CSS/JS) | Gotowe |
 | Docker Compose (nginx + backend) | Gotowe |
+| AI opponent (minimax, poziomy 1–3) | Gotowe |
+| Online multiplayer (kolejka + losowy 1v1) | Gotowe |
 | `ChessEngine<BoardType>` — pełna logika gry | Gotowe |
 | `Board8x8` + `Board12x12` (concept `PlayableBoard`) | Gotowe |
 | Szach, mat, pat, roszada, en passant, promocja, remisy | Gotowe |
@@ -92,14 +94,20 @@ Opcja CMake `BUILD_WEB` (domyślnie ON) buduje serwer HTTP. Lokalnie: `./build/c
 | Metoda | Ścieżka | Body / wynik |
 |--------|---------|--------------|
 | GET | `/api/health` | `{ ok, service }` |
+| GET | `/api/lobby` | statystyki kolejki |
+| POST | `/api/matchmaking/join` | matchmaking; header `X-Player-Id` |
+| GET | `/api/matchmaking/status` | status kolejki / mecz |
+| POST | `/api/matchmaking/leave` | wyjdź z kolejki |
 | POST | `/api/games` | body opcjonalne: `{ vsAi, difficulty, playerColor }` |
-| GET | `/api/games/:id` | `{ gameId, state }` |
+| GET | `/api/games/:id` | `{ gameId, state, meta }` |
 | POST | `/api/games/:id/move` | `{ from, to, promotion? }` → może zwrócić `aiMove` |
-| POST | `/api/games/:id/reset` | reset pozycji |
+| POST | `/api/games/:id/reset` | reset (nie w online) |
 
 `state` zawiera m.in. `board`, `turn`, `result`, `gameOver`, `message`. Serializacja: `include/game/game_api.hpp`.
 
-AI: `include/ai/` — material eval + alpha-beta. CLI: `--ai --difficulty 1|2|3`. Web: checkbox + select poziomu.
+AI: `include/ai/` — material eval + alpha-beta. CLI: `--ai --difficulty 1|2|3`.
+
+Online: wielu graczy, wiele sesji w pamięci, losowe kolory przy sparowaniu, frontend polluje stan (~1.2 s).
 
 ## Konwencje kodu
 

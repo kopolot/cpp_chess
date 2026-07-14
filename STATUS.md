@@ -4,12 +4,12 @@
 
 ## W skrócie
 
-**Silnik szachowy C++20** z CLI, web GUI (nginx + REST) oraz przeciwnikiem AI na 3 poziomach trudności.
+**Silnik szachowy C++20** z CLI, web GUI (nginx + REST), AI oraz **multiplayer online** (kolejka + losowy przeciwnik).
 
-## Etap: MVP + web + AI
+## Etap: MVP + web + AI + multiplayer
 
 ```
-[███████████████████░] ~90%
+[████████████████████] ~92%
 ```
 
 | Zrobione | Do zrobienia |
@@ -17,9 +17,10 @@
 | CMake + Conan + GTest + fmt | GUI desktop (Qt/SDL) |
 | `Board8x8` i `Board12x12` | Notacja SAN / PGN |
 | Pełna logika gry | Zegar szachowy |
-| CLI (`--board`, `--ai`, `--difficulty`) | Persystencja partii |
-| Web API + vanilla GUI + Docker/nginx | Szybszy / głębszy AI |
-| AI: łatwy / średni / trudny (minimax) | |
+| CLI (`--board`, `--ai`, `--difficulty`) | Persystencja / auth |
+| Web API + vanilla GUI + Docker/nginx | WebSocket zamiast pollingu |
+| AI: łatwy / średni / trudny | Szybszy AI |
+| Online: kolejka, losowy 1v1, wiele sesji | |
 | ~45 testów GTest | |
 
 ## Uruchomienie
@@ -43,11 +44,14 @@
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| GET | `/api/health` | healthcheck |
+| GET | `/api/lobby` | kolejka + liczba partii |
+| POST | `/api/matchmaking/join` | wejdź do kolejki / sparuj (`name`, `X-Player-Id`) |
+| GET | `/api/matchmaking/status` | `waiting` / `matched` |
+| POST | `/api/matchmaking/leave` | opuść kolejkę |
 | POST | `/api/games` | `{ vsAi, difficulty, playerColor? }` |
-| GET | `/api/games/:id` | stan + `meta` |
-| POST | `/api/games/:id/move` | ruch gracza; odpowiedź może zawierać `aiMove` |
-| POST | `/api/games/:id/reset` | reset |
+| GET | `/api/games/:id` | stan + `meta` (wymaga `X-Player-Id` w online) |
+| POST | `/api/games/:id/move` | ruch gracza; online: tylko Twoja tura |
+| POST | `/api/games/:id/reset` | reset (tylko local/AI) |
 
 ## Następny krok
 
