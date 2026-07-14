@@ -2,3 +2,6 @@
 html/*
 latex/*
 build/*
+web/frontend/node_modules/
+web/frontend/dist/
+compile_commands.json

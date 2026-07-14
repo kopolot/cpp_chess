@@ -5,6 +5,9 @@ html/
 latex/
 .vscode/
 .cursor/
+web/frontend/node_modules/
+web/frontend/dist/
+web/public/
 *.md
 !README.MD
 note.md

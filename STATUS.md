@@ -4,7 +4,7 @@
 
 ## W skrócie
 
-**Silnik szachowy C++20** z CLI, web GUI (nginx + REST), AI oraz **multiplayer online** (kolejka + losowy przeciwnik).
+**Silnik szachowy C++20** z CLI, web GUI (**Vue 3** + nginx + REST), AI oraz **multiplayer online** (kolejka + losowy przeciwnik).
 
 ## Etap: MVP + web + AI + multiplayer
 
@@ -18,7 +18,7 @@
 | `Board8x8` i `Board12x12` | Notacja SAN / PGN |
 | Pełna logika gry | Zegar szachowy |
 | CLI (`--board`, `--ai`, `--difficulty`) | Persystencja / auth |
-| Web API + vanilla GUI + Docker/nginx | WebSocket zamiast pollingu |
+| Web API + Vue GUI + Docker/nginx | WebSocket zamiast pollingu |
 | AI: łatwy / średni / trudny | Szybszy AI |
 | Online: kolejka, losowy 1v1, wiele sesji | |
 | ~45 testów GTest | |
