@@ -112,6 +112,34 @@ body {
   outline-offset: -3px;
 }
 
+.square.ai-from,
+.square.ai-to {
+  outline: 3px solid #87cefa;
+  outline-offset: -3px;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.setting {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--muted);
+}
+
+.setting select {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #1f1f27;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+}
+
 .square .piece.white {
   color: #ffffff;
   text-shadow: 0 0 2px #000, 0 0 2px #000;

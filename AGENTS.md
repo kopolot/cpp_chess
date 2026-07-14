@@ -24,9 +24,10 @@ Modułowy **silnik szachowy w C++20** z wymiennymi front-endami:
 | `ChessEngine<BoardType>` — pełna logika gry | Gotowe |
 | `Board8x8` + `Board12x12` (concept `PlayableBoard`) | Gotowe |
 | Szach, mat, pat, roszada, en passant, promocja, remisy | Gotowe |
-| Testy GTest | ~40 testów (`test_board`, `test_moves`) |
+| Testy GTest | ~45 testów (`test_board`, `test_moves`, `test_ai`) |
+| AI opponent (minimax, poziomy 1–3) | Gotowe |
 
-**Następny logiczny krok:** notacja SAN / PGN, zegar, silnik AI; opcja `Board12x12` w web API.
+**Następny logiczny krok:** notacja SAN / PGN, zegar, mocniejszy AI.
 
 ## Struktura katalogów
 
@@ -44,6 +45,7 @@ cpp_chess/
 │   ├── chess_engine.hpp      # Szablon ChessEngine<BoardType>
 │   ├── board/                # Board8x8, Board12x12, concept PlayableBoard
 │   ├── game/                 # Logika gry + game_api.hpp (JSON)
+│   ├── ai/                   # Ocena pozycji + minimax (poziomy trudności)
 │   └── type/chess_piece.hpp
 ├── src/board/                # Implementacje plansz
 ├── test/                     # test_board.cpp, test_moves.cpp
@@ -90,12 +92,14 @@ Opcja CMake `BUILD_WEB` (domyślnie ON) buduje serwer HTTP. Lokalnie: `./build/c
 | Metoda | Ścieżka | Body / wynik |
 |--------|---------|--------------|
 | GET | `/api/health` | `{ ok, service }` |
-| POST | `/api/games` | → `{ gameId, state }` |
+| POST | `/api/games` | body opcjonalne: `{ vsAi, difficulty, playerColor }` |
 | GET | `/api/games/:id` | `{ gameId, state }` |
-| POST | `/api/games/:id/move` | `{ from, to, promotion? }` |
+| POST | `/api/games/:id/move` | `{ from, to, promotion? }` → może zwrócić `aiMove` |
 | POST | `/api/games/:id/reset` | reset pozycji |
 
 `state` zawiera m.in. `board`, `turn`, `result`, `gameOver`, `message`. Serializacja: `include/game/game_api.hpp`.
+
+AI: `include/ai/` — material eval + alpha-beta. CLI: `--ai --difficulty 1|2|3`. Web: checkbox + select poziomu.
 
 ## Konwencje kodu
 

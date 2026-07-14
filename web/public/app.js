@@ -2,16 +2,22 @@ const boardEl = document.getElementById("board");
 const turnEl = document.getElementById("turn");
 const messageEl = document.getElementById("message");
 const hintEl = document.getElementById("hint");
+const aiInfoEl = document.getElementById("ai-info");
 const promotionEl = document.getElementById("promotion");
 const newGameBtn = document.getElementById("new-game");
 const resetGameBtn = document.getElementById("reset-game");
+const vsAiEl = document.getElementById("vs-ai");
+const difficultyEl = document.getElementById("difficulty");
+const playerColorEl = document.getElementById("player-color");
 
 const API_BASE = "/api";
 
 let gameId = null;
 let state = null;
+let meta = null;
 let selected = null;
 let pendingPromotion = null;
+let lastAiMove = null;
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
@@ -32,6 +38,14 @@ function parseSquare(name) {
   return { file, rankIndex: 8 - rank };
 }
 
+function gameOptions() {
+  return {
+    vsAi: vsAiEl.checked,
+    difficulty: Number(difficultyEl.value),
+    playerColor: playerColorEl.value,
+  };
+}
+
 async function api(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
@@ -46,6 +60,18 @@ async function api(path, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function isPlayerTurn() {
+  if (!state || state.gameOver) {
+    return false;
+  }
+  if (!meta?.vsAi) {
+    return true;
+  }
+  const player = meta.playerColor || "white";
+  const turn = state.turn === 0 ? "white" : "black";
+  return turn === player;
 }
 
 function renderBoard() {
@@ -63,6 +89,12 @@ function renderBoard() {
 
       if (selected === square.dataset.square) {
         square.classList.add("selected");
+      }
+      if (lastAiMove && square.dataset.square === lastAiMove.slice(0, 2)) {
+        square.classList.add("ai-from");
+      }
+      if (lastAiMove && square.dataset.square === lastAiMove.slice(2, 4)) {
+        square.classList.add("ai-to");
       }
 
       if (piece) {
@@ -85,34 +117,69 @@ function renderStatus() {
   }
 
   const turn = state.turnName || (state.turn === 0 ? "białe" : "czarne");
-  turnEl.textContent = state.gameOver ? "Gra zakończona" : `Tura: ${turn}`;
+  if (state.gameOver) {
+    turnEl.textContent = "Gra zakończona";
+  } else if (meta?.vsAi && !isPlayerTurn()) {
+    turnEl.textContent = `Tura AI (${turn})`;
+  } else {
+    turnEl.textContent = `Tura: ${turn}`;
+  }
+
   messageEl.textContent = state.message || "";
   hintEl.textContent = state.enPassantHint || "";
+
+  if (meta?.vsAi) {
+    const level = meta.difficultyName || meta.difficulty;
+    const you = meta.playerColor === "black" ? "czarne" : "białe";
+    aiInfoEl.textContent = lastAiMove
+      ? `AI (${level}) zagrało ${lastAiMove}. Grasz: ${you}.`
+      : `Tryb AI (${level}). Grasz: ${you}.`;
+  } else {
+    aiInfoEl.textContent = "Tryb: dwóch graczy";
+  }
 }
 
-function applyState(nextState) {
-  state = nextState;
+function applyPayload(payload) {
+  gameId = payload.gameId;
+  state = payload.state;
+  meta = payload.meta || null;
+  lastAiMove = payload.aiMove || null;
   selected = null;
   pendingPromotion = null;
   promotionEl.classList.add("hidden");
+  if (meta) {
+    vsAiEl.checked = !!meta.vsAi;
+    if (meta.difficulty) {
+      difficultyEl.value = String(meta.difficulty);
+    }
+    if (meta.playerColor) {
+      playerColorEl.value = meta.playerColor;
+    }
+  }
   renderBoard();
   renderStatus();
 }
 
 async function createGame() {
-  const payload = await api("/games", { method: "POST" });
-  gameId = payload.gameId;
-  localStorage.setItem("cpp_chess_game_id", gameId);
-  applyState(payload.state);
+  const payload = await api("/games", {
+    method: "POST",
+    body: JSON.stringify(gameOptions()),
+  });
+  localStorage.setItem("cpp_chess_game_id", payload.gameId);
+  applyPayload(payload);
 }
 
 async function loadGame(id) {
   const payload = await api(`/games/${id}`);
-  gameId = payload.gameId;
-  applyState(payload.state);
+  applyPayload(payload);
 }
 
 async function sendMove(from, to, promotion) {
+  if (!isPlayerTurn()) {
+    messageEl.textContent = "Teraz kolej AI.";
+    return;
+  }
+
   const body = { from, to };
   if (promotion) {
     body.promotion = promotion;
@@ -123,7 +190,7 @@ async function sendMove(from, to, promotion) {
       method: "POST",
       body: JSON.stringify(body),
     });
-    applyState(payload.state);
+    applyPayload(payload);
   } catch (error) {
     if (error.payload?.needsPromotion) {
       pendingPromotion = { from, to };
@@ -137,7 +204,7 @@ async function sendMove(from, to, promotion) {
 }
 
 function onSquareClick(name) {
-  if (!state || state.gameOver) {
+  if (!state || state.gameOver || !isPlayerTurn()) {
     return;
   }
 
@@ -178,7 +245,7 @@ async function resetGame() {
     return;
   }
   const payload = await api(`/games/${gameId}/reset`, { method: "POST" });
-  applyState(payload.state);
+  applyPayload(payload);
 }
 
 promotionEl.querySelectorAll("button[data-piece]").forEach((button) => {

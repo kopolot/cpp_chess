@@ -17,10 +17,33 @@
         <div id="turn" class="status-line">Ładowanie…</div>
         <div id="message" class="status-line message"></div>
         <div id="hint" class="status-line hint"></div>
+        <div id="ai-info" class="status-line hint"></div>
       </section>
 
       <section class="board-wrap">
         <div id="board" class="board" aria-label="Szachownica"></div>
+      </section>
+
+      <section class="panel settings">
+        <label class="setting">
+          <input id="vs-ai" type="checkbox" checked />
+          Graj przeciw AI
+        </label>
+        <label class="setting">
+          Poziom
+          <select id="difficulty">
+            <option value="1">Łatwy</option>
+            <option value="2" selected>Średni</option>
+            <option value="3">Trudny</option>
+          </select>
+        </label>
+        <label class="setting">
+          Twój kolor
+          <select id="player-color">
+            <option value="white" selected>Białe</option>
+            <option value="black">Czarne</option>
+          </select>
+        </label>
       </section>
 
       <section class="panel controls">

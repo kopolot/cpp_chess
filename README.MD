@@ -21,6 +21,7 @@ MVP: pełna logika gry, dwie implementacje planszy, konsola oraz REST API + vani
 ./bin/cmake
 ./build/cpp_chess_cli
 ./build/cpp_chess_cli --board 12x12
+./build/cpp_chess_cli --ai --difficulty medium
 ./build/cpp_chess_cli --help
 ```
 
@@ -45,10 +46,12 @@ Lokalnie bez Dockera:
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | `GET` | `/api/health` | healthcheck |
-| `POST` | `/api/games` | nowa gra |
+| `POST` | `/api/games` | nowa gra (`vsAi`, `difficulty`, `playerColor`) |
 | `GET` | `/api/games/:id` | stan gry |
 | `POST` | `/api/games/:id/move` | `{ "from": "e2", "to": "e4", "promotion": "q" }` |
 | `POST` | `/api/games/:id/reset` | reset pozycji |
+
+Poziomy AI: `1` łatwy, `2` średni, `3` trudny (głębokość minimax 1/2/3).
 
 ## Struktura
 
