@@ -8,7 +8,6 @@
   --light-square: #eeeed2;
   --dark-square: #769656;
   --selected: #f6f669;
-  --target: #7ad67a;
   --danger: #ff7b7b;
   --border: #3a3a45;
 }
@@ -23,6 +22,10 @@ body {
   font-family: "Segoe UI", system-ui, sans-serif;
   background: radial-gradient(circle at top, #2a2a35, var(--bg));
   color: var(--text);
+}
+
+#app {
+  min-height: 100vh;
 }
 
 .layout {
@@ -86,6 +89,8 @@ body {
   line-height: 1;
   user-select: none;
   cursor: pointer;
+  border: 0;
+  padding: 0;
   transition: outline 0.1s ease;
 }
 
@@ -97,32 +102,60 @@ body {
   background: var(--dark-square);
 }
 
+.square.selected,
+.square.ai-from,
+.square.ai-to {
+  outline-offset: -3px;
+}
+
 .square.selected {
   outline: 3px solid var(--selected);
-  outline-offset: -3px;
 }
 
-.square.target {
-  outline: 3px solid var(--target);
-  outline-offset: -3px;
+.square.ai-from,
+.square.ai-to {
+  outline: 3px solid #87cefa;
 }
 
-.square.invalid {
-  outline: 3px solid var(--danger);
-  outline-offset: -3px;
-}
-
-.square .piece.white {
+.piece.white {
   color: #ffffff;
   text-shadow: 0 0 2px #000, 0 0 2px #000;
 }
 
-.square .piece.black {
+.piece.black {
   color: #111111;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.setting {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--muted);
+}
+
+.setting select,
+.setting input {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #1f1f27;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+}
+
+.setting input {
+  min-width: 8rem;
 }
 
 .controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -140,14 +173,15 @@ button:hover {
   filter: brightness(1.05);
 }
 
+button.secondary {
+  background: #4a4a58;
+  color: var(--text);
+}
+
 .promotion-buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
-}
-
-.hidden {
-  display: none;
 }
 
 @media (max-width: 520px) {

@@ -31,7 +31,9 @@ inline const char* pieceTypeName(PieceType type) {
   return "pawn";
 }
 
-inline const char* colorNameEn(int color) { return color == 0 ? "white" : "black"; }
+inline const char* colorNameEn(int color) {
+  return color == 0 ? "white" : "black";
+}
 
 inline const char* gameResultName(game::GameResult result) {
   switch (result) {
@@ -45,18 +47,22 @@ inline const char* gameResultName(game::GameResult result) {
       return "stalemate";
     case game::GameResult::Draw:
       return "draw";
+    case game::GameResult::Resignation:
+      return "resignation";
   }
   return "in_progress";
 }
 
-inline nlohmann::json occupantJson(const std::optional<board::Occupant>& occupant) {
+inline nlohmann::json occupantJson(
+    const std::optional<board::Occupant>& occupant) {
   if (!occupant) {
     return nullptr;
   }
-  return nlohmann::json{{"color", colorNameEn(occupant->color)},
-                        {"type", pieceTypeName(occupant->type)},
-                        {"symbol", std::string(1, game::pieceToChar(*occupant))},
-                        {"unicode", game::pieceToUnicode(*occupant)}};
+  return nlohmann::json{
+      {"color", colorNameEn(occupant->color)},
+      {"type", pieceTypeName(occupant->type)},
+      {"symbol", std::string(1, game::pieceToChar(*occupant))},
+      {"unicode", game::pieceToUnicode(*occupant)}};
 }
 
 template <board::PlayableBoard Board>
@@ -97,19 +103,20 @@ struct MoveRequest {
 };
 
 inline std::optional<MoveRequest> parseMoveRequest(const nlohmann::json& body) {
-  if (!body.contains("from") || !body.contains("to") || !body["from"].is_string() ||
-      !body["to"].is_string()) {
+  if (!body.contains("from") || !body.contains("to") ||
+      !body["from"].is_string() || !body["to"].is_string()) {
     return std::nullopt;
   }
 
-  MoveRequest request{body["from"].get<std::string>(), body["to"].get<std::string>(),
-                      std::nullopt};
+  MoveRequest request{body["from"].get<std::string>(),
+                      body["to"].get<std::string>(), std::nullopt};
 
   if (body.contains("promotion") && !body["promotion"].is_null()) {
     if (!body["promotion"].is_string()) {
       return std::nullopt;
     }
-    request.promotion = game::parsePromotionChar(body["promotion"].get<std::string>()[0]);
+    request.promotion =
+        game::parsePromotionChar(body["promotion"].get<std::string>()[0]);
     if (!request.promotion) {
       return std::nullopt;
     }

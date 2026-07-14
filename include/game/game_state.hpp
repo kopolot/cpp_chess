@@ -15,7 +15,14 @@
 
 namespace game {
 
-enum class GameResult { InProgress, Check, Checkmate, Stalemate, Draw };
+enum class GameResult {
+  InProgress,
+  Check,
+  Checkmate,
+  Stalemate,
+  Draw,
+  Resignation
+};
 
 template <board::PlayableBoard Board>
 struct AppliedMove {
@@ -27,10 +34,10 @@ struct AppliedMove {
   int rook_rank = -1;
 };
 
-inline void updateCastlingRightsForMove(CastlingRights& rights, int from_file, int from_rank,
-                                        int to_file, int to_rank,
-                                        const board::Occupant& piece,
-                                        const std::optional<board::Occupant>& captured) {
+inline void updateCastlingRightsForMove(
+    CastlingRights& rights, int from_file, int from_rank, int to_file,
+    int to_rank, const board::Occupant& piece,
+    const std::optional<board::Occupant>& captured) {
   if (piece.type == PieceType::King) {
     if (piece.color == 0) {
       rights.white_kingside = false;
@@ -90,10 +97,10 @@ inline void updateCastlingRightsForMove(CastlingRights& rights, int from_file, i
 }
 
 template <board::PlayableBoard Board>
-inline AppliedMove<Board> applyMove(Board& board, int from_file, int from_rank, int to_file,
-                                    int to_rank, const board::Occupant& piece,
-                                    GameContext& context,
-                                    std::optional<PieceType> promotion = std::nullopt) {
+inline AppliedMove<Board> applyMove(
+    Board& board, int from_file, int from_rank, int to_file, int to_rank,
+    const board::Occupant& piece, GameContext& context,
+    std::optional<PieceType> promotion = std::nullopt) {
   AppliedMove<Board> delta;
   delta.captured = board.get(to_file, to_rank);
 
@@ -142,15 +149,16 @@ inline AppliedMove<Board> applyMove(Board& board, int from_file, int from_rank, 
     context.en_passant = std::make_pair(from_file, from_rank + direction);
   }
 
-  updateCastlingRightsForMove(context.castling, from_file, from_rank, to_file, to_rank, piece,
-                              delta.captured);
+  updateCastlingRightsForMove(context.castling, from_file, from_rank, to_file,
+                              to_rank, piece, delta.captured);
 
   return delta;
 }
 
 template <board::PlayableBoard Board>
-inline void undoMove(Board& board, int from_file, int from_rank, int to_file, int to_rank,
-                     const board::Occupant& piece, const AppliedMove<Board>& delta) {
+inline void undoMove(Board& board, int from_file, int from_rank, int to_file,
+                     int to_rank, const board::Occupant& piece,
+                     const AppliedMove<Board>& delta) {
   if (delta.was_castle) {
     const auto rook = board.get(delta.rook_to_file, delta.rook_rank);
     board.set(delta.rook_to_file, delta.rook_rank, std::nullopt);
@@ -170,36 +178,41 @@ inline void undoMove(Board& board, int from_file, int from_rank, int to_file, in
 }
 
 template <board::PlayableBoard Board>
-inline bool leavesKingInCheck(Board& board, GameContext& context, int from_file, int from_rank,
-                              int to_file, int to_rank, const board::Occupant& piece,
-                              std::optional<PieceType> promotion = std::nullopt) {
+inline bool leavesKingInCheck(
+    Board& board, GameContext& context, int from_file, int from_rank,
+    int to_file, int to_rank, const board::Occupant& piece,
+    std::optional<PieceType> promotion = std::nullopt) {
   GameContext snapshot = context;
-  const auto delta =
-      applyMove(board, from_file, from_rank, to_file, to_rank, piece, snapshot, promotion);
+  const auto delta = applyMove(board, from_file, from_rank, to_file, to_rank,
+                               piece, snapshot, promotion);
   const bool in_check = isInCheck(board, piece.color);
   undoMove(board, from_file, from_rank, to_file, to_rank, piece, delta);
   return in_check;
 }
 
 template <board::PlayableBoard Board>
-inline bool isLegalMove(const Board& board, const GameContext& context, int from_file,
-                        int from_rank, int to_file, int to_rank, const board::Occupant& piece,
+inline bool isLegalMove(const Board& board, const GameContext& context,
+                        int from_file, int from_rank, int to_file, int to_rank,
+                        const board::Occupant& piece,
                         std::optional<PieceType> promotion = std::nullopt) {
   Board copy = board;
   GameContext copy_context = context;
-  if (!isPseudoLegalMove(copy, from_file, from_rank, to_file, to_rank, piece, copy_context)) {
+  if (!isPseudoLegalMove(copy, from_file, from_rank, to_file, to_rank, piece,
+                         copy_context)) {
     return false;
   }
-  if (piece.type == PieceType::Pawn && needsPromotion(from_rank, to_rank, piece.type, piece.color) &&
+  if (piece.type == PieceType::Pawn &&
+      needsPromotion(from_rank, to_rank, piece.type, piece.color) &&
       !promotion) {
     return false;
   }
-  return !leavesKingInCheck(copy, copy_context, from_file, from_rank, to_file, to_rank, piece,
-                            promotion);
+  return !leavesKingInCheck(copy, copy_context, from_file, from_rank, to_file,
+                            to_rank, piece, promotion);
 }
 
 template <board::PlayableBoard Board>
-inline bool hasAnyLegalMove(const Board& board, const GameContext& context, int color) {
+inline bool hasAnyLegalMove(const Board& board, const GameContext& context,
+                            int color) {
   for (int from_rank = 0; from_rank < board::kPlayableSize; ++from_rank) {
     for (int from_file = 0; from_file < board::kPlayableSize; ++from_file) {
       const auto piece = board.get(from_file, from_rank);
@@ -208,15 +221,16 @@ inline bool hasAnyLegalMove(const Board& board, const GameContext& context, int 
       }
       for (int to_rank = 0; to_rank < board::kPlayableSize; ++to_rank) {
         for (int to_file = 0; to_file < board::kPlayableSize; ++to_file) {
-          if (isLegalMove(board, context, from_file, from_rank, to_file, to_rank, *piece)) {
+          if (isLegalMove(board, context, from_file, from_rank, to_file,
+                          to_rank, *piece)) {
             return true;
           }
           if (piece->type == PieceType::Pawn &&
               needsPromotion(from_rank, to_rank, piece->type, piece->color)) {
-            for (const auto promo :
-                 {PieceType::Queen, PieceType::Rook, PieceType::Bishop, PieceType::Knight}) {
-              if (isLegalMove(board, context, from_file, from_rank, to_file, to_rank, *piece,
-                              promo)) {
+            for (const auto promo : {PieceType::Queen, PieceType::Rook,
+                                     PieceType::Bishop, PieceType::Knight}) {
+              if (isLegalMove(board, context, from_file, from_rank, to_file,
+                              to_rank, *piece, promo)) {
                 return true;
               }
             }
@@ -229,7 +243,8 @@ inline bool hasAnyLegalMove(const Board& board, const GameContext& context, int 
 }
 
 template <board::PlayableBoard Board>
-inline GameResult evaluatePosition(const Board& board, const GameContext& context,
+inline GameResult evaluatePosition(const Board& board,
+                                   const GameContext& context,
                                    int side_to_move) {
   if (context.halfmove_clock >= 100) {
     return GameResult::Draw;
@@ -266,6 +281,8 @@ inline std::string gameResultMessage(GameResult result, int side_to_move) {
       return "Pat! Remis.";
     case GameResult::Draw:
       return "Remis (regula 50 ruchow lub 3-krotne powtorzenie).";
+    case GameResult::Resignation:
+      return "Poddanie! Wygrywaja " + colorName(1 - side_to_move) + ".";
   }
   return "";
 }

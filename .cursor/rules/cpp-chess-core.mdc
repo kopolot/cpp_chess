@@ -5,14 +5,14 @@ alwaysApply: true
 
 # cpp_chess — reguły projektu
 
-Modułowy silnik szachowy C++20. Silnik i CLI są oddzielone.
+Modułowy silnik szachowy C++20. Silnik i UI są oddzielone.
 
 ## Stan projektu
 
 - Toolchain gotowy (CMake, Conan, GTest, fmt, Doxygen)
-- Logika gry **niezaimplementowana** — tylko nagłówki w `include/`
-- `src/` i `engine/` są puste
-- Szczegóły: `AGENTS.md`, `STATUS.md`, `note.md`
+- Logika gry, CLI, AI, web API — gotowe
+- Frontend: Vue 3 + Vite w `web/frontend/`
+- Szczegóły: `AGENTS.md`, `STATUS.md`
 
 ## Build
 
@@ -20,12 +20,14 @@ Modułowy silnik szachowy C++20. Silnik i CLI są oddzielone.
 ./bin/conan-install   # pełny setup
 ./bin/cmake           # rebuild Debug
 cd build && ctest     # testy
+./bin/docker-up       # Vue (nginx) + backend
 ```
 
 ## Zasady zmian
 
-- Logika silnika → `include/` + `src/` lub `engine/`, nie w `cli/`
+- Logika silnika → `include/` + `src/board/`, nie w `cli/` ani `web/`
+- UI → `web/frontend/` (Vue); API → `web/server/`
 - `ChessEngine<BoardType>` — plansza jako parametr szablonu
 - C++20, styl Google (`.clang-format`)
-- Zależności tylko przez Conan (`conanfile.txt`)
+- Zależności C++ tylko przez Conan (`conanfile.txt`)
 - Minimalny diff — nie refaktoruj bez potrzeby

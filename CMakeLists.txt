@@ -71,7 +71,7 @@ if(BUILD_TESTING)
     enable_testing()
     find_package(GTest REQUIRED)
 
-    add_executable(tests test/test_board.cpp test/test_moves.cpp)
+    add_executable(tests test/test_board.cpp test/test_moves.cpp test/test_ai.cpp)
     target_include_directories(tests PRIVATE include)
     target_link_libraries(tests PRIVATE
         cpp_chess_board
