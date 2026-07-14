@@ -7,6 +7,7 @@ project(cpp_chess VERSION 1.0 LANGUAGES CXX)
 # Ustaw standard C++
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # statyczne sprawdzanie kodu (tylko gdy clang-tidy jest dostępny)
 find_program(CLANG_TIDY_EXE NAMES clang-tidy)
 if(CLANG_TIDY_EXE)
